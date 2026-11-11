@@ -1,11 +1,12 @@
 import app from './app.js';
-import { connectToDb } from './src/db/connect.js';
+import { connectToDb, connectToMongoose } from './src/db/connect.js';
 
 const NODE_ENV = process.env.NODE_ENV?.toLowerCase() || 'production';
 const PORT = process.env.PORT || 3000;
 
 // Connect to MongoDB before accepting requests.
 await connectToDb();
+await connectToMongoose();
 
 // Start the live-reload WebSocket server in development mode.
 if (NODE_ENV.includes('dev')) {
