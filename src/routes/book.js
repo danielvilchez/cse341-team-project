@@ -1,5 +1,5 @@
 import { getDb } from '../db/connect.js';
-import { generateConfirmationCode } from '../includes/helpers.js';
+import { generateBookingCode } from '../includes/helpers.js';
 
 const bookingPage = async (req, res) => {
     const { scheduleId } = req.params;
@@ -24,14 +24,14 @@ const bookingPage = async (req, res) => {
 };
 
 const processBookingRequest = async (req, res) => {
-    const confirmation = {
-        id: generateConfirmationCode(),
+    const booking = {
+        id: generateBookingCode(),
         createdAt: new Date().toISOString(),
         ...req.body
     };
-    await getDb().collection('confirmations').insertOne(confirmation);
+    await getDb().collection('bookings').insertOne(booking);
 
-    res.redirect(`/trips/confirmation/${confirmation.id}`);
+    res.redirect(`/trips/confirmation/${booking.id}`);
 };
 
 export { bookingPage, processBookingRequest };

@@ -17,6 +17,6 @@ router.get('/booking/:scheduleId', bookingPage);
 router.post('/book', processBookingRequest);
 
 // Booking confirmation page
-router.get('/confirmation/:confirmationId', confirmationPage);
+router.get('/confirmation/:bookingId', confirmationPage);
 
 export default router;
