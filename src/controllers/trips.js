@@ -1,4 +1,4 @@
-import { getAllTrips, getTripById } from "../models/trips.js";
+import { getAllTrips, getTripById, getTripRegions, getTripSeasons } from "../models/trips.js";
 
 // --- API Controllers ---
 export async function getTripsApi(req, res) {
@@ -6,6 +6,7 @@ export async function getTripsApi(req, res) {
     const trips = await getAllTrips();
     return res.status(200).json(trips);
   } catch (error) {
+    console.error("DATABASE ERROR:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 }
@@ -18,31 +19,38 @@ export async function getTripByIdApi(req, res) {
     }
     return res.status(200).json(trip);
   } catch (error) {
+    console.error("DATABASE ERROR:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 }
 
-// --- EJS Page Controllers ---
+export async function renderTripsPage(req, res, next) {
+  try {
+    const regions = await getTripRegions();
+    const seasons = await getTripSeasons();
 
-// The list page no longer fetches trips from the database. 
-// It just renders the page, and the browser will fetch the data from /api/trips.
-export async function renderTripsPage(req, res) {
-  res.render("trips/list", { title: "Scenic Train Trips" });
+    res.render("trips/list", { 
+      title: "Scenic Train Trips",
+      regions: regions,
+      seasons: seasons,
+      query: req.query || {}
+    });
+  } catch (error) {
+    next(error);
+  }
 }
 
-// The details page still needs the server to render the main info.
-// We use our new Mongoose model to get the trip.
 export async function renderTripDetailsPage(req, res, next) {
   try {
     const trip = await getTripById(req.params.tripId);
     if (!trip) {
-      return res.status(404).render("404"); // Or however your app handles 404s
+      return res.status(404).render("404");
     }
-    res.render("trips/details", { 
+    return res.render("trips/details", { 
       title: 'Trip Details', 
       details: trip 
     });
   } catch (error) {
-    next(error);
+    return next(error);
   }
 }

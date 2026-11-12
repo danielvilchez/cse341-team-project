@@ -7,3 +7,11 @@ export async function getTripById(id) {
 export async function getAllTrips() {
   return trip.find({}).lean();
 }
+
+export async function getTripRegions() {
+  return await trip.distinct("region");
+}
+
+export async function getTripSeasons() {
+  return await trip.distinct("bestSeason");
+}
