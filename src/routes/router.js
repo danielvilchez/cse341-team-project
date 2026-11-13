@@ -4,11 +4,13 @@ import { trainsApi, trainsPage } from './trains.js';
 import { Router } from 'express';
 import { homePage, aboutPage, testErrorPage } from './index.js';
 import { bookingsAdminPage } from '../controllers/bookings.js';
+import { Router } from "express";
+import ejsRoutes from "./ejs-routes.js";+-
 
 const router = Router();
 
-// Home page
-router.get('/', homePage);
+// Use API routes (e.g., /api/trains, /api/trips)
+router.use(apiRoutes);
 
 // About page
 router.get('/about', aboutPage);
@@ -89,5 +91,7 @@ router.use('/trips', railTripsRouter);
 
 // Test 500 error page
 router.get('/500', testErrorPage);
+// Use EJS routes (e.g., /, /about, /trains, /trips)
+router.use(ejsRoutes);
 
 export default router;
