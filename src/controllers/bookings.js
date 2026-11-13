@@ -56,6 +56,12 @@ const getBookingByIdHandler = async (req, res) => {
     }
 };
 
+const bookingsAdminPage = (req, res) => {
+    return res.status(200).render('bookings', {
+        title: 'Bookings Admin'
+    });
+};
+
 // HTML pages controllers
 const bookingPage = async (req, res, next) => {
     const { scheduleId } = req.params;
@@ -141,6 +147,7 @@ export {
     createBookingHandler,
     getAllBookingsHandler,
     getBookingByIdHandler,
+    bookingsAdminPage,
     bookingPage,
     processBookingRequest,
     confirmationPage
