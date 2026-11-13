@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { trainsApi } from "./trains.js";
 import { getTripsApi, getTripByIdApi } from "../controllers/trips.js";
+import { getBookingsApi } from "../controllers/bookings.js";
 
 const router = Router();
 
@@ -44,5 +45,20 @@ router.get("/api/trips", getTripsApi);
  *         description: Internal server error
  */
 router.get("/api/trips/:id", getTripByIdApi);
+
+/**
+ * @openapi
+ * /api/bookings:
+ *   get:
+ *     summary: Get all bookings
+ *     tags:
+ *       - Bookings
+ *     responses:
+ *       200:
+ *         description: A list of bookings
+ *       500:
+ *         description: Internal server error
+ */
+router.get("/api/bookings", getBookingsApi);
 
 export default router;

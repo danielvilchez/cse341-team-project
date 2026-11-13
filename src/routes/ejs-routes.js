@@ -1,6 +1,8 @@
+
 import { Router } from "express";
 import { homePage, aboutPage, testErrorPage } from "./index.js";
 import { trainsPage } from "./trains.js";
+import { renderBookingsAdminPage } from "../controllers/bookings.js";
 import railTripsRouter from "./trips.js";
 
 const router = Router();
@@ -13,6 +15,9 @@ router.get("/about", aboutPage);
 
 // Trains page
 router.get("/trains", trainsPage);
+
+// Bookings administration page
+router.get("/bookings-admin", renderBookingsAdminPage);
 
 // Rail trips page
 router.use("/trips", railTripsRouter);

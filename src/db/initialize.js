@@ -1,3 +1,4 @@
+
 import trips from './seeds/trips.json' with { type: 'json' };
 import schedules from './seeds/schedules.json' with { type: 'json' };
 import stations from './seeds/stations.json' with { type: 'json' };
@@ -23,9 +24,9 @@ const initializeDatabase = async (db) => {
     await collection.insertMany(documents);
   }
 
-  const confirmations = db.collection('confirmations');
-  await confirmations.deleteMany({});
-  await confirmations.createIndex({ id: 1 }, { unique: true });
+  // Initialize bookings collection without deleting existing bookings
+  const bookings = db.collection('bookings');
+  await bookings.createIndex({ id: 1 }, { unique: true });
 };
 
 export { initializeDatabase, starterCollections };

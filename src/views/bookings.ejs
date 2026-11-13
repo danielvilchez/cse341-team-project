@@ -1,0 +1,47 @@
+
+<%- include('./partials/header') %>
+
+<link rel="stylesheet" href="/css/utilities/bookings-admin.css">
+
+<section class="bookings-hero">
+    <h1>Bookings Administration</h1>
+    <p>Manage and review all customer bookings.</p>
+</section>
+
+<section class="bookings-container">
+    <div class="bookings-summary">
+        <h2>All Bookings</h2>
+        <p id="bookings-count">Loading bookings...</p>
+    </div>
+
+    <div id="bookings-loading" class="bookings-message">
+        Loading bookings...
+    </div>
+
+    <div id="bookings-error" class="bookings-message bookings-error" hidden>
+    </div>
+
+    <div id="bookings-empty" class="bookings-message" hidden>
+        No bookings have been registered yet.
+    </div>
+
+    <div class="bookings-table-wrapper">
+        <table id="bookings-table" hidden>
+            <thead>
+                <tr>
+                    <th>Booking ID</th>
+                    <th>Date</th>
+                    <th>Trip ID</th>
+                    <th>Ticket Class</th>
+                    <th>Passengers</th>
+                    <th>Total Price</th>
+                </tr>
+            </thead>
+            <tbody id="bookings-list"></tbody>
+        </table>
+    </div>
+</section>
+
+<script src="/js/bookings-admin.js" defer></script>
+
+<%- include('./partials/footer') %>
