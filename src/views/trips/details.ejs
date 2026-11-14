@@ -62,9 +62,13 @@
         <div class="route-operating">
             <h2>Operating Schedule</h2>
             <div class="months-grid">
+                <% if (Array.isArray(details.operatingMonths) && details.operatingMonths.length > 0) { %>
                 <% details.operatingMonths.forEach(function(month) { %>
                 <span class="month-badge"><%= month %></span>
                 <% }); %>
+                <% } else { %>
+                <p>Operating months are not available.</p>
+                <% } %>
             </div>
         </div>
 
