@@ -8,14 +8,6 @@ const PORT = process.env.PORT || 3000;
 await connectToDb();
 await connectToMongoose();
 
-// 2. Connect using Mongoose (for your new Trips feature)
-try {
-    await mongoose.connect(process.env.MONGODB_URI);
-    console.log('Mongoose connected successfully');
-} catch (error) {
-    console.error('Mongoose connection error:', error.message);
-}
-
 // Start the live-reload WebSocket server in development mode.
 if (NODE_ENV.includes('dev')) {
     const ws = await import('ws');
