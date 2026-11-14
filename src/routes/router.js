@@ -4,8 +4,7 @@ import { trainsApi, trainsPage } from './trains.js';
 import { Router } from 'express';
 import { homePage, aboutPage, testErrorPage } from './index.js';
 import { bookingsAdminPage } from '../controllers/bookings.js';
-import { Router } from "express";
-import ejsRoutes from "./ejs-routes.js";+-
+import ejsRoutes from "./ejs-routes.js";
 
 const router = Router();
 

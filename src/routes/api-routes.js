@@ -5,6 +5,9 @@ import {
     getBookingByIdHandler
 } from '../controllers/bookings.js';
 
+import { trainsApi } from "./trains.js";
+import { getTripsApi, getTripByIdApi } from "../controllers/trips.js";
+
 const router = Router();
 
 /**
@@ -261,13 +264,6 @@ router.post('/bookings', createBookingHandler);
  *               $ref: '#/components/schemas/Error'
  */
 router.get('/bookings/:bookingId', getBookingByIdHandler);
-
-export default router;
-import { Router } from "express";
-import { trainsApi } from "./trains.js";
-import { getTripsApi, getTripByIdApi } from "../controllers/trips.js";
-
-const router = Router();
 
 // Trains API
 router.get("/api/trains", trainsApi);
