@@ -4,6 +4,8 @@ import {
     getAllBookings
 } from '../models/bookings.js';
 
+import { getTripById } from '../models/trips.js';
+
 import { getDb } from '../db/connect.js';
 import { generateBookingCode } from '../includes/helpers.js';
 
@@ -74,7 +76,7 @@ const bookingPage = async (req, res, next) => {
             error.status = 404;
             return next(error);
         }
-        const trip = await db.collection('trips').findOne({ id: schedule.tripId });
+        const trip = await getTripById(schedule.tripId);
         if (!trip) {
             const error = new Error('Trip not found');
             error.status = 404;
