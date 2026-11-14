@@ -1,13 +1,10 @@
 import { MongoClient } from 'mongodb';
+import mongoose from 'mongoose';
 
 let database;
 let client;
 
-const connectToDb = async (options = {}) => {
-  if (database) {
-    return database;
-  }
-
+const getConnectionOptions = (options) => {
   const connectionString = options.connectionString || process.env.MONGODB_URI;
   const databaseName = options.databaseName || process.env.MONGODB_DB_NAME || 'practice';
 
@@ -15,10 +12,30 @@ const connectToDb = async (options = {}) => {
     throw new Error('MONGODB_URI is required.');
   }
 
+  return { connectionString, databaseName };
+};
+
+const connectToDb = async (options = {}) => {
+  if (database) {
+    return database;
+  }
+
+  const { connectionString, databaseName } = getConnectionOptions(options);
+
   client = new MongoClient(connectionString);
   await client.connect();
   database = client.db(databaseName);
   return database;
+};
+
+const connectToMongoose = async (options = {}) => {
+  if (mongoose.connection.readyState === 1) {
+    return mongoose.connection;
+  }
+
+  const { connectionString, databaseName } = getConnectionOptions(options);
+  await mongoose.connect(connectionString, { dbName: databaseName });
+  return mongoose.connection;
 };
 
 const getDb = () => {
@@ -29,11 +46,17 @@ const getDb = () => {
 };
 
 const closeDb = async () => {
+  const closeOperations = [mongoose.disconnect()];
   if (client) {
-    await client.close();
+    closeOperations.push(client.close());
+  }
+
+  try {
+    await Promise.all(closeOperations);
+  } finally {
     client = undefined;
     database = undefined;
   }
 };
 
-export { closeDb, connectToDb, getDb };
+export { closeDb, connectToDb, connectToMongoose, getDb };

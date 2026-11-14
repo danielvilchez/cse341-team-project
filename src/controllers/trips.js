@@ -1,4 +1,5 @@
 import { getAllTrips, getTripById, getTripRegions, getTripSeasons } from "../models/trips.js";
+import { getDb } from "../db/connect.js";
 
 // --- API Controllers ---
 export async function getTripsApi(req, res) {
@@ -46,9 +47,13 @@ export async function renderTripDetailsPage(req, res, next) {
     if (!trip) {
       return res.status(404).render("404");
     }
+    const schedules = await getDb()
+      .collection("schedules")
+      .find({ tripId: req.params.tripId })
+      .toArray();
     return res.render("trips/details", { 
       title: 'Trip Details', 
-      details: trip 
+      details: { ...trip, schedules }
     });
   } catch (error) {
     return next(error);

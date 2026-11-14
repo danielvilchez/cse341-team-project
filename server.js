@@ -1,20 +1,12 @@
 import app from './app.js';
-import { connectToDb } from './src/db/connect.js';
-import mongoose from 'mongoose';
+import { connectToDb, connectToMongoose } from './src/db/connect.js';
 
 const NODE_ENV = process.env.NODE_ENV?.toLowerCase() || 'production';
 const PORT = process.env.PORT || 3000;
 
 // 1. Connect using the raw MongoDB driver (for the team's existing code)
 await connectToDb();
-
-// 2. Connect using Mongoose (for your new Trips feature)
-try {
-    await mongoose.connect(process.env.MONGODB_URI);
-    console.log('Mongoose connected successfully');
-} catch (error) {
-    console.error('Mongoose connection error:', error.message);
-}
+await connectToMongoose();
 
 // Start the live-reload WebSocket server in development mode.
 if (NODE_ENV.includes('dev')) {
