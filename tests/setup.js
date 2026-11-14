@@ -1,3 +1,5 @@
+
+import mongoose from 'mongoose';
 import { afterAll, beforeAll, beforeEach, inject } from 'vitest';
 import { closeDb, connectToDb, getDb } from '../src/db/connect.js';
 import { initializeDatabase } from '../src/db/initialize.js';
@@ -9,6 +11,10 @@ beforeAll(async () => {
     connectionString,
     databaseName: 'kizuna-rail-test'
   });
+
+  await mongoose.connect(connectionString, {
+    dbName: 'kizuna-rail-test'
+  });
 });
 
 beforeEach(async () => {
@@ -18,5 +24,6 @@ beforeEach(async () => {
 });
 
 afterAll(async () => {
+  await mongoose.disconnect();
   await closeDb();
 });

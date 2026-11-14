@@ -1,3 +1,4 @@
+
 import app from './app.js';
 import { connectToDb } from './src/db/connect.js';
 import mongoose from 'mongoose';
@@ -10,7 +11,9 @@ await connectToDb();
 
 // 2. Connect using Mongoose (for your new Trips feature)
 try {
-    await mongoose.connect(process.env.MONGODB_URI);
+    await mongoose.connect(process.env.MONGODB_URI, {
+        dbName: process.env.MONGODB_DB_NAME || 'practice'
+    });
     console.log('Mongoose connected successfully');
 } catch (error) {
     console.error('Mongoose connection error:', error.message);
