@@ -1,8 +1,8 @@
 import railTripsRouter from './trips.js';
 import apiRoutes from './api-routes.js';
-import { trainsApi, trainsPage } from './trains.js';
+import { trainsPage } from './trains.js';
 import { Router } from 'express';
-import { homePage, aboutPage, testErrorPage } from './index.js';
+import { aboutPage, testErrorPage } from './index.js';
 import { bookingsAdminPage } from '../controllers/bookings.js';
 import ejsRoutes from "./ejs-routes.js";
 
@@ -82,7 +82,6 @@ router.get('/trains', trainsPage);
  *       500:
  *         description: Internal server error
  */
-router.get('/api/trains', trainsApi);
 router.use('/api', apiRoutes);
 
 // Rail trips
