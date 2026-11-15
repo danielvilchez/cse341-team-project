@@ -126,7 +126,7 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/bookings', getAllBookingsHandler);
+router.get('/api/bookings', getAllBookingsHandler);
 
 /**
  * @swagger
@@ -221,7 +221,7 @@ router.get('/bookings', getAllBookingsHandler);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/bookings', createBookingHandler);
+router.post('/api/bookings', createBookingHandler);
 
 /**
  * @swagger
@@ -263,7 +263,7 @@ router.post('/bookings', createBookingHandler);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/bookings/:bookingId', getBookingByIdHandler);
+router.get('/api/bookings/:bookingId', getBookingByIdHandler);
 
 // Trains API
 router.get("/api/trains", trainsApi);
