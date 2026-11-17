@@ -1,9 +1,8 @@
-
 import schedule from "./schemas/schedules.js";
-import trip from "./schemas/trips.js";
+import { getTripById } from "./trips.js";
 
 export async function getSchedulesByTripId(tripId, month) {
-  const tripDetails = await trip.findOne({ id: tripId }).lean();
+  const tripDetails = await getTripById(tripId);
 
   if (!tripDetails) {
     return null;
