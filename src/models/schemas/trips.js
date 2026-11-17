@@ -24,7 +24,8 @@ const tripSchema = new mongoose.Schema(
         message: "Operating months must be integers between 1 and 12.",
       },
     },
-    highlights: { type: [String], required: false }
+    highlights: { type: [String], required: false },
+    imageUrl: { type: String, required: false, trim: true }
   },
   {
     timestamps: true,

@@ -1,4 +1,3 @@
-
 import { writeFileSync } from 'node:fs';
 import swaggerJsdoc from 'swagger-jsdoc';
 
@@ -8,7 +7,7 @@ const options = {
         info: {
             title: 'Kizuna Rail',
             version: '1.0.0',
-            description: 'API for managing trips and train schedules in Kizuna Rail'
+            description: 'API for managing trips, train schedules, and bookings in Kizuna Rail'
         },
         servers: [
             {

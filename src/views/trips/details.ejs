@@ -1,101 +1,127 @@
-
 <%- include('../partials/header') %>
 
-<article class="route-detail">
-    <div class="route-header">
-        <div class="route-header-content">
-            <h1 class="route-name"><%= details.name %></h1>
-            <p class="route-description"><%= details.description %></p>
+    <article class="route-detail">
+        <div class="route-header">
+            <div class="route-header-content">
+                <h1 class="route-name">
+                    <%= details.name %>
+                </h1>
+                <p class="route-description">
+                    <%= details.description %>
+                </p>
 
-            <% if (details.highlights && details.highlights.length > 0) { %>
-            <div class="highlights">
-                <% details.highlights.forEach(function(highlight) { %>
-                <span class="highlight-tag"><%= highlight %></span>
-                <% }); %>
-            </div>
-            <% } %>
-        </div>
-
-        <% if (details.imageUrl) { %>
-        <div class="route-image">
-            <img src="<%= details.imageUrl %>" alt="<%= details.name %>">
-        </div>
-        <% } %>
-    </div>
-
-    <div class="route-info">
-        <div class="info-grid">
-            <div class="info-item">
-                <span class="info-label">Region</span>
-                <span class="info-value region-<%= details.region %>"><%= details.region.charAt(0).toUpperCase() + details.region.slice(1) %></span>
+                <% if (details.highlights && details.highlights.length> 0) { %>
+                    <div class="highlights">
+                        <% details.highlights.forEach(function(highlight) { %>
+                            <span class="highlight-tag">
+                                <%= highlight %>
+                            </span>
+                            <% }); %>
+                    </div>
+                    <% } %>
             </div>
 
-            <div class="info-item">
-                <span class="info-label">Duration</span>
-                <span class="info-value"><%= details.duration %></span>
-            </div>
-
-            <div class="info-item">
-                <span class="info-label">Distance</span>
-                <span class="info-value"><%= details.distance %> km</span>
-            </div>
-
-            <div class="info-item">
-                <span class="info-label">Best Season</span>
-                <span class="info-value season-<%= details.bestSeason %>"><%= details.bestSeason.charAt(0).toUpperCase() + details.bestSeason.slice(1) %></span>
-            </div>
-        </div>
-
-        <div class="route-stations">
-            <h2>Trip</h2>
-            <div class="stations">
-                <div class="station">
-                    <span class="station-label">Start</span>
-                    <span class="station-name"><%= details.startStation.charAt(0).toUpperCase() + details.startStation.slice(1) %></span>
+            <% if (details.imageUrl) { %>
+                <div class="route-image">
+                    <img src="<%= details.imageUrl %>" alt="<%= details.name %>">
                 </div>
-                <div class="station">
-                    <span class="station-label">End</span>
-                    <span class="station-name"><%= details.endStation.charAt(0).toUpperCase() + details.endStation.slice(1) %></span>
+                <% } %>
+        </div>
+
+        <div class="route-info">
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="info-label">Region</span>
+                    <span class="info-value region-<%= details.region %>">
+                        <%= details.region.charAt(0).toUpperCase() + details.region.slice(1) %>
+                    </span>
+                </div>
+
+                <div class="info-item">
+                    <span class="info-label">Duration</span>
+                    <span class="info-value">
+                        <%= details.duration %>
+                    </span>
+                </div>
+
+                <div class="info-item">
+                    <span class="info-label">Distance</span>
+                    <span class="info-value">
+                        <%= details.distance %> km
+                    </span>
+                </div>
+
+                <div class="info-item">
+                    <span class="info-label">Best Season</span>
+                    <span class="info-value season-<%= details.bestSeason %>">
+                        <%= details.bestSeason.charAt(0).toUpperCase() + details.bestSeason.slice(1) %>
+                    </span>
                 </div>
             </div>
-        </div>
 
-        <div class="route-operating">
-            <h2>Operating Schedule</h2>
-            <div class="months-grid">
-                <% details.operatingMonths.forEach(function(month) { %>
-                <span class="month-badge"><%= month %></span>
-                <% }); %>
-            </div>
-        </div>
-
-        <div class="route-schedules" id="route-schedules"
-             data-trip-id="<%= details.id %>">
-
-            <h2>Available Schedules</h2>
-
-            <div class="schedule-filter">
-                <label for="schedule-month">Select Month:</label>
-                <select id="schedule-month">
-                    <% details.operatingMonths.forEach(function(month) { %>
-                    <option value="<%= month %>"><%= month %></option>
-                    <% }); %>
-                </select>
+            <div class="route-stations">
+                <h2>Trip</h2>
+                <div class="stations">
+                    <div class="station">
+                        <span class="station-label">Start</span>
+                        <span class="station-name">
+                            <%= details.startStation.charAt(0).toUpperCase() + details.startStation.slice(1) %>
+                        </span>
+                    </div>
+                    <div class="station">
+                        <span class="station-label">End</span>
+                        <span class="station-name">
+                            <%= details.endStation.charAt(0).toUpperCase() + details.endStation.slice(1) %>
+                        </span>
+                    </div>
+                </div>
             </div>
 
-            <p id="schedules-loading">Loading schedules...</p>
+            <div class="route-operating">
+                <h2>Operating Schedule</h2>
+                <div class="months-grid">
+                    <% if (Array.isArray(details.operatingMonths) && details.operatingMonths.length> 0) { %>
+                        <% details.operatingMonths.forEach(function(month) { %>
+                            <span class="month-badge">
+                                <%= month %>
+                            </span>
+                            <% }); %>
+                                <% } else { %>
+                                    <p>Operating months are not available.</p>
+                                    <% } %>
+                </div>
+            </div>
 
-            <p id="schedules-empty" hidden>
-                No schedules available for this month.
-            </p>
+            <div class="route-schedules" id="route-schedules" data-trip-id="<%= details.id %>">
 
-            <p id="schedules-error" hidden>
-                Unable to load schedules. Please try again.
-            </p>
+                <h2>Available Schedules</h2>
 
-            <div class="schedules-grid" id="schedules-grid"></div>
+                <% if (Array.isArray(details.operatingMonths) && details.operatingMonths.length> 0) { %>
+                    <div class="schedule-filter">
+                        <label for="schedule-month">Select Month:</label>
+                        <select id="schedule-month">
+                            <% details.operatingMonths.forEach(function(month) { %>
+                                <option value="<%= month %>">
+                                    <%= month %>
+                                </option>
+                                <% }); %>
+                        </select>
+                    </div>
+                    <% } %>
+
+                        <p id="schedules-loading">Loading schedules...</p>
+
+                        <p id="schedules-empty" hidden>
+                            No schedules available for this month.
+                        </p>
+
+                        <p id="schedules-error" hidden>
+                            Unable to load schedules. Please try again.
+                        </p>
+
+                        <div class="schedules-grid" id="schedules-grid"></div>
+            </div>
         </div>
-    </div>
-</article>
+    </article>
 
-<%- include('../partials/footer') %>
+    <%- include('../partials/footer') %>
