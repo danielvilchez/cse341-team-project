@@ -1,3 +1,4 @@
+
 import { describe, expect, test } from 'vitest';
 import request from 'supertest';
 import app from '../app.js';
@@ -8,8 +9,9 @@ describe('Trip details page', () => {
     const response = await request(app).get('/trips/alpine-panorama');
 
     expect(response.status).toBe(200);
-    expect(response.text).toContain('<span class="month-badge">4</span>');
-    expect(response.text).toContain('href="/trips/booking/1"');
+    expect(response.text).toMatch(/class="month-badge">\s*4\s*</);
+    expect(response.text).toContain('Available Schedules');
+    expect(response.text).toContain('id="schedules-grid"');
   });
 
   test('renders the booking page from an available schedule', async () => {

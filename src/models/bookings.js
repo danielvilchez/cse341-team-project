@@ -13,8 +13,8 @@ const getBookingById = (bookingId) => {
     return bookingsSchema.findOne({ id: bookingId }).exec();
 };
 
-export { 
-    createBooking, 
-    getAllBookings, 
-    getBookingById 
+export {
+    createBooking,
+    getAllBookings,
+    getBookingById
 };

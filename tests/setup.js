@@ -1,5 +1,10 @@
 import { afterAll, beforeAll, beforeEach, inject } from 'vitest';
-import { closeDb, connectToDb, connectToMongoose, getDb } from '../src/db/connect.js';
+import {
+  closeDb,
+  connectToDb,
+  connectToMongoose,
+  getDb
+} from '../src/db/connect.js';
 import { initializeDatabase } from '../src/db/initialize.js';
 
 const connectionString = inject('MONGODB_TEST_URI');
@@ -10,7 +15,11 @@ beforeAll(async () => {
     connectionString,
     databaseName
   });
-  await connectToMongoose({ connectionString, databaseName });
+
+  await connectToMongoose({
+    connectionString,
+    databaseName
+  });
 });
 
 beforeEach(async () => {

@@ -47,6 +47,7 @@ const getDb = () => {
 
 const closeDb = async () => {
   const closeOperations = [mongoose.disconnect()];
+
   if (client) {
     closeOperations.push(client.close());
   }

@@ -1,5 +1,5 @@
 import {
-    createBooking, 
+    createBooking,
     getBookingById,
     getAllBookings
 } from '../models/bookings.js';
@@ -45,7 +45,7 @@ const getAllBookingsHandler = async (req, res) => {
 };
 
 const getBookingByIdHandler = async (req, res) => {
-    const { bookingId } = req.params; 
+    const { bookingId } = req.params;
     try {
         const booking = await getBookingById(bookingId);
         if (!booking) {
@@ -67,7 +67,7 @@ const bookingsAdminPage = (req, res) => {
 // HTML pages controllers
 const bookingPage = async (req, res, next) => {
     const { scheduleId } = req.params;
-    
+
     try {
         const db = getDb();
         const schedule = await db.collection('schedules').findOne({ id: Number(scheduleId) });
@@ -95,7 +95,7 @@ const bookingPage = async (req, res, next) => {
             amenities: ticketClass.amenities,
             description: ticketClass.description
         }));
-    
+
         return res.status(200).render('trips/book', {
             title: 'Book Trip',
             schedule,
@@ -116,9 +116,9 @@ const processBookingRequest = async (req, res, next) => {
             selectedDay: req.body.selectedDay,
             passengers: req.body.passengers
         };
-    
+
         const booking = await createBooking(bookingData);
-    
+
         return res.redirect(302, `/trips/confirmation/${booking.id}`);
     } catch (error) {
         return next(error)
@@ -145,7 +145,7 @@ const confirmationPage = async (req, res, next) => {
     }
 };
 
-export { 
+export {
     createBookingHandler,
     getAllBookingsHandler,
     getBookingByIdHandler,

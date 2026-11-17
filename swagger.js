@@ -2,21 +2,21 @@ import { writeFileSync } from 'node:fs';
 import swaggerJsdoc from 'swagger-jsdoc';
 
 const options = {
-  definition: {
-    openapi: '3.0.0',
-    info: {
-      title: 'Kizuna Rail',
-      version: '1.0.0',
-      description: 'A simple API for working with books'
+    definition: {
+        openapi: '3.0.0',
+        info: {
+            title: 'Kizuna Rail',
+            version: '1.0.0',
+            description: 'API for managing trips, train schedules, and bookings in Kizuna Rail'
+        },
+        servers: [
+            {
+                url: '/',
+                description: 'Current server'
+            }
+        ]
     },
-    servers: [
-      {
-        url: '/',
-        description: 'Current server'
-      }
-    ]
-  },
-  apis: ['./src/routes/router.js', './src/routes/api-routes.js', './app.js']
+    apis: ['./src/routes/router.js', './src/routes/api-routes.js', './app.js']
 };
 
 const swaggerSpec = swaggerJsdoc(options);

@@ -1,3 +1,4 @@
+
 const hookRegionSorter = () => {
     const regionSelect = document.getElementById('region-filter');
     if (regionSelect) {
@@ -10,7 +11,7 @@ const hookRegionSorter = () => {
             } else {
                 url.searchParams.delete('region');
             }
-            
+
             window.location.href = url.toString();
         });
     }
@@ -28,7 +29,7 @@ const hookSeasonSorter = () => {
             } else {
                 url.searchParams.delete('season');
             }
-            
+
             window.location.href = url.toString();
         });
     }
@@ -88,8 +89,117 @@ const hookTrainsCatalog = async () => {
     }
 };
 
+const hookTripSchedules = () => {
+    const schedulesSection = document.getElementById('route-schedules');
+    const monthSelect = document.getElementById('schedule-month');
+    const schedulesGrid = document.getElementById('schedules-grid');
+    const loadingEl = document.getElementById('schedules-loading');
+    const emptyEl = document.getElementById('schedules-empty');
+    const errorEl = document.getElementById('schedules-error');
+
+    if (!schedulesSection || !monthSelect || !schedulesGrid) {
+        return;
+    }
+
+    const tripId = schedulesSection.dataset.tripId;
+
+    const loadSchedules = async () => {
+        loadingEl.hidden = false;
+        emptyEl.hidden = true;
+        errorEl.hidden = true;
+        schedulesGrid.replaceChildren();
+
+        try {
+            const month = monthSelect.value;
+
+            const response = await fetch(
+                `/api/trips/${encodeURIComponent(tripId)}/schedules?month=${encodeURIComponent(month)}`
+            );
+
+            if (!response.ok) {
+                throw new Error(`Failed to load schedules (${response.status})`);
+            }
+
+            const schedules = await response.json();
+
+            loadingEl.hidden = true;
+
+            if (schedules.length === 0) {
+                emptyEl.hidden = false;
+                return;
+            }
+
+            schedules.forEach((schedule) => {
+                const card = document.createElement('div');
+                card.className = 'schedule-card';
+
+                const times = document.createElement('div');
+                times.className = 'schedule-times';
+
+                const departure = document.createElement('div');
+                departure.className = 'time-block';
+
+                const departureLabel = document.createElement('span');
+                departureLabel.className = 'time-label';
+                departureLabel.textContent = 'Departs';
+
+                const departureTime = document.createElement('span');
+                departureTime.className = 'time-value';
+                departureTime.textContent = schedule.departureTime;
+
+                departure.append(departureLabel, departureTime);
+
+                const arrow = document.createElement('span');
+                arrow.className = 'time-arrow';
+                arrow.textContent = '→';
+
+                const arrival = document.createElement('div');
+                arrival.className = 'time-block';
+
+                const arrivalLabel = document.createElement('span');
+                arrivalLabel.className = 'time-label';
+                arrivalLabel.textContent = 'Arrives';
+
+                const arrivalTime = document.createElement('span');
+                arrivalTime.className = 'time-value';
+                arrivalTime.textContent = schedule.arrivalTime;
+
+                arrival.append(arrivalLabel, arrivalTime);
+
+                times.append(departure, arrow, arrival);
+
+                const days = document.createElement('div');
+                days.className = 'schedule-days';
+
+                schedule.daysOfWeek.forEach((day) => {
+                    const dayBadge = document.createElement('span');
+                    dayBadge.className = 'day-badge';
+                    dayBadge.textContent = day.substring(0, 3);
+                    days.appendChild(dayBadge);
+                });
+
+                const bookLink = document.createElement('a');
+                bookLink.href = `/trips/booking/${encodeURIComponent(schedule.id)}`;
+                bookLink.className = 'book-btn';
+                bookLink.textContent = 'Book Now';
+
+                card.append(times, days, bookLink);
+                schedulesGrid.appendChild(card);
+            });
+        } catch (error) {
+            console.error('Error loading schedules:', error);
+            loadingEl.hidden = true;
+            errorEl.hidden = false;
+        }
+    };
+
+    monthSelect.addEventListener('change', loadSchedules);
+    loadSchedules();
+};
+
 document.addEventListener('DOMContentLoaded', () => {
     hookRegionSorter();
     hookSeasonSorter();
     hookTrainsCatalog();
+    hookTripSchedules();
 });
