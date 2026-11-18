@@ -41,7 +41,7 @@ export const requirePageRole = (role) => (req, res, next) => {
     return res.redirect("/login");
   }
   if (!hasRole(req, role)) {
-    return res.status(403).render("errors/403", { title: "Forbidden" });
+    return res.status(403).render("errors/403", { title: "Forbidden", user: req.user });
   }
   return next();
 };

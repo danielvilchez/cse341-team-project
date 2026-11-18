@@ -68,7 +68,11 @@ export const loginUser = async (req, res, next) => {
       role: user.role.name
     };
 
-    return res.redirect('/admin/dashboard'); // We will build this next
+    
+    if (req.session.user.role === 'admin') {
+      return res.redirect('/admin/dashboard');
+    }
+    return res.redirect('/dashboard');
   } catch (error) {
     return next(error);
   }
