@@ -12,7 +12,20 @@ const tripSchema = new mongoose.Schema(
     region: { type: String, required: false, trim: true },
     distance: { type: Number, required: false, min: 0 },
     bestSeason: { type: String, required: false, trim: true },
-    highlights: { type: [String], required: false }
+    operatingMonths: {
+      type: [Number],
+      required: false,
+      validate: {
+        validator: (months) =>
+          months.every(
+            (month) =>
+              Number.isInteger(month) && month >= 1 && month <= 12
+          ),
+        message: "Operating months must be integers between 1 and 12.",
+      },
+    },
+    highlights: { type: [String], required: false },
+    imageUrl: { type: String, required: false, trim: true }
   },
   {
     timestamps: true,

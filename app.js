@@ -6,13 +6,18 @@ import session from 'express-session';
 import globalMiddleware from './src/middleware/global.js';
 import { loadSessionUser } from './src/middleware/auth.js';
 import routes from './src/routes/router.js';
+import swaggerUi from 'swagger-ui-express';
+import swaggerDocument from './swagger.json' with { type: 'json' };
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = Path.dirname(__filename);
 
 const app = express();
 
-// Add version info to res.locals
+// Swagger Docs
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+
+// Add version info to res.locals for access in templates.
 app.use((req, res, next) => {
     res.locals.appVersion = pkg.version;
     next();
@@ -27,7 +32,7 @@ app.set('views', Path.join(__dirname, 'src/views'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// --- ADD SESSION MIDDLEWARE HERE ---
+// --- SESSION MIDDLEWARE ---
 const SESSION_SECRET = process.env.SESSION_SECRET;
 if (!SESSION_SECRET) {
     throw new Error('SESSION_SECRET is not defined. Add it to your .env file.');
@@ -46,7 +51,7 @@ app.use(globalMiddleware);
 app.use(loadSessionUser);
 app.use('/', routes);
 
-// Error handlers (keep your existing ones)
+// Error handlers
 app.use((req, res, next) => {
     const err = new Error('Page Not Found');
     err.status = 404;
