@@ -4,12 +4,19 @@ import stations from './seeds/stations.json' with { type: 'json' };
 import ticketClasses from './seeds/ticket-classes.json' with { type: 'json' };
 import trains from './seeds/trains.json' with { type: 'json' };
 
+// Define the initial roles we need for authentication
+const roles = [
+  { name: 'customer' },
+  { name: 'admin' }
+];
+
 const starterCollections = [
   ['trips', trips],
   ['schedules', schedules],
   ['stations', stations],
   ['ticketClasses', ticketClasses],
-  ['trains', trains]
+  ['trains', trains],
+  ['roles', roles] 
 ];
 
 const initializeDatabase = async (db) => {
@@ -26,6 +33,10 @@ const initializeDatabase = async (db) => {
   const confirmations = db.collection('confirmations');
   await confirmations.deleteMany({});
   await confirmations.createIndex({ id: 1 }, { unique: true });
+  
+  // We also need a unique index on role names
+  const rolesCollection = db.collection('roles');
+  await rolesCollection.createIndex({ name: 1 }, { unique: true });
 };
 
 export { initializeDatabase, starterCollections };

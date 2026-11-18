@@ -2,6 +2,14 @@ import { Router } from "express";
 import { homePage, aboutPage, testErrorPage } from "./index.js";
 import { trainsPage } from "./trains.js";
 import railTripsRouter from "./trips.js";
+import { 
+  renderRegisterPage, 
+  registerUser, 
+  renderLoginPage, 
+  loginUser, 
+  logoutUser 
+} from "../controllers/auth.js";
+import { requirePageRole } from "../middleware/auth.js";
 
 const router = Router();
 
@@ -16,6 +24,18 @@ router.get("/trains", trainsPage);
 
 // Rail trips page
 router.use("/trips", railTripsRouter);
+
+// Auth routes
+router.get("/register", renderRegisterPage);
+router.post("/register", registerUser);
+router.get("/login", renderLoginPage);
+router.post("/login", loginUser);
+router.post("/logout", logoutUser);
+
+// Admin Dashboard (Protected)
+router.get("/admin/dashboard", requirePageRole('admin'), (req, res) => {
+  res.render("admin/dashboard", { title: "Admin Dashboard" });
+});
 
 // Test 500 error page
 router.get("/500", testErrorPage);
