@@ -8,6 +8,7 @@ import { loadSessionUser } from './src/middleware/auth.js';
 import routes from './src/routes/router.js';
 import swaggerUi from 'swagger-ui-express';
 import swaggerDocument from './swagger.json' with { type: 'json' };
+import MongoStore from 'connect-mongo';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = Path.dirname(__filename);
@@ -43,7 +44,18 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     rolling: true,
-    cookie: { maxAge: 60 * 60 * 1000 }
+    store: MongoStore.create({
+        mongoUrl: process.env.MONGODB_URI,
+        dbName: process.env.MONGODB_DB_NAME || 'kizuna-rail',
+        collectionName: 'sessions',
+        ttl: 60 * 60 * 24 
+    }),
+    cookie: { 
+        maxAge: 60 * 60 * 1000,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax'
+    }
 }));
 // -----------------------------------
 

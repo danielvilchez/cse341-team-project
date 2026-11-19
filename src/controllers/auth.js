@@ -6,9 +6,9 @@ export const renderRegisterPage = (req, res) => {
 
 export const registerUser = async (req, res, next) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, username, email, password } = req.body;
     
-    if (!name || !email || !password) {
+    if (!name || !username || !email || !password) {
       return res.status(400).render('auth/register', { 
         title: 'Register', 
         error: 'All fields are required.' 
@@ -23,7 +23,7 @@ export const registerUser = async (req, res, next) => {
       });
     }
 
-    await createUser(name, email, password);
+    await createUser(name, username, email, password);
     return res.redirect('/login');
   } catch (error) {
     return next(error);
@@ -61,18 +61,22 @@ export const loginUser = async (req, res, next) => {
       });
     }
 
-    // Set the session
-    req.session.user = {
-      id: user._id.toString(),
-      name: user.name,
-      role: user.role.name
-    };
+    // Regenerate session to prevent fixation
+    req.session.regenerate((err) => {
+      if (err) return next(err);
 
-    
-    if (req.session.user.role === 'admin') {
-      return res.redirect('/admin/dashboard');
-    }
-    return res.redirect('/dashboard');
+      req.session.user = {
+        id: user._id.toString(),
+        name: user.name,
+        role: user.role.name
+      };
+
+      // Redirect based on role
+      if (req.session.user.role === 'admin') {
+        return res.redirect('/admin/dashboard');
+      }
+      return res.redirect('/dashboard');
+    });
   } catch (error) {
     return next(error);
   }

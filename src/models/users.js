@@ -2,7 +2,7 @@ import bcrypt from 'bcrypt';
 import User from './schemas/users.js';
 import Role from './schemas/roles.js';
 
-export const createUser = async (name, email, password) => {
+export const createUser = async (name, username, email, password) => {
   const customerRole = await Role.findOne({ name: 'customer' });
   if (!customerRole) throw new Error('Default customer role not found');
 
@@ -10,6 +10,7 @@ export const createUser = async (name, email, password) => {
   
   const newUser = await User.create({
     name,
+    username,
     email,
     passwordHash,
     role: customerRole._id
