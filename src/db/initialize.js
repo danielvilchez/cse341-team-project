@@ -4,12 +4,18 @@ import stations from './seeds/stations.json' with { type: 'json' };
 import ticketClasses from './seeds/ticket-classes.json' with { type: 'json' };
 import trains from './seeds/trains.json' with { type: 'json' };
 
+const roles = [
+  { name: 'customer' },
+  { name: 'admin' }
+];
+
 const starterCollections = [
   ['trips', trips],
   ['schedules', schedules],
   ['stations', stations],
   ['ticketClasses', ticketClasses],
-  ['trains', trains]
+  ['trains', trains],
+  ['roles', roles] 
 ];
 
 const initializeDatabase = async (db) => {
@@ -26,6 +32,9 @@ const initializeDatabase = async (db) => {
   const bookings = db.collection('bookings');
   await bookings.deleteMany({});
   await bookings.createIndex({ id: 1 }, { unique: true });
+  
+  const rolesCollection = db.collection('roles');
+  await rolesCollection.createIndex({ name: 1 }, { unique: true });
 };
 
 export { initializeDatabase, starterCollections };
