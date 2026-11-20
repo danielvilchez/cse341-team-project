@@ -1,4 +1,13 @@
-import { createUser, findUserByEmail, verifyPassword } from '../models/users.js';
+import { 
+  createUser,
+  verifyPassword,
+  findUserByEmail,
+  findUserByUsername,
+  findUserById,
+  findAllUsers,
+  updateUserById,
+  deleteUserById } 
+from '../models/users.js';
 
 const renderRegisterPage = (req, res) => {
   return res.render('auth/register', { title: 'Register' });
@@ -36,20 +45,27 @@ const renderLoginPage = (req, res) => {
 
 const loginUser = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { identifier, password } = req.body;
+    const normalizedIdentifier = typeof identifier === 'string'
+      ? identifier.trim().toLowerCase()
+      : '';
 
-    if (!email || !password) {
+    if (!normalizedIdentifier || typeof password !== 'string' || !password) {
       return res.status(400).render('auth/login', { 
         title: 'Login', 
-        error: 'Email and password are required.' 
+        error: 'Email or username and password are required.' 
       });
     }
 
-    const user = await findUserByEmail(email);
+    let user = await findUserByEmail(normalizedIdentifier);
+    if (!user) {
+      user = await findUserByUsername(normalizedIdentifier);
+    }
+    
     if (!user) {
       return res.status(401).render('auth/login', { 
         title: 'Login', 
-        error: 'Invalid email or password.' 
+        error: 'Invalid email or username and password.' 
       });
     }
 
@@ -57,7 +73,7 @@ const loginUser = async (req, res, next) => {
     if (!isValid) {
       return res.status(401).render('auth/login', { 
         title: 'Login', 
-        error: 'Invalid email or password.' 
+        error: 'Invalid email or username and password.' 
       });
     }
 
