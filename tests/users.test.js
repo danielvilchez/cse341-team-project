@@ -4,7 +4,9 @@ import {
     createUser,
     deleteUserById,
     findAllUsers,
+    findUserByEmail,
     findUserById,
+    findUserByUsername,
     updateUserById,
     verifyPassword
 } from '../src/models/users.js';
@@ -17,6 +19,33 @@ const createTestUser = () => createUser(
 );
 
 describe('User model', () => {
+    test('finds a user by email and populates the role', async () => {
+        await createTestUser();
+
+        const user = await findUserByEmail('test@example.com');
+
+        expect(user.email).toBe('test@example.com');
+        expect(user.role.name).toBe('customer');
+        expect(user.passwordHash).toBeTruthy();
+    });
+
+    test('returns null when no user has the requested email', async () => {
+        await expect(findUserByEmail('missing@example.com')).resolves.toBeNull();
+    });
+
+    test('finds a user by username and populates the role', async () => {
+        await createTestUser();
+
+        const user = await findUserByUsername('testuser');
+
+        expect(user.username).toBe('testuser');
+        expect(user.role.name).toBe('customer');
+    });
+
+    test('returns null when no user has the requested username', async () => {
+        await expect(findUserByUsername('missinguser')).resolves.toBeNull();
+    });
+
     test('updates user fields and returns the populated role without the password hash', async () => {
         const user = await createTestUser();
 
