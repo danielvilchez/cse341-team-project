@@ -1,10 +1,10 @@
 import { createUser, findUserByEmail, verifyPassword } from '../models/users.js';
 
-export const renderRegisterPage = (req, res) => {
+const renderRegisterPage = (req, res) => {
   return res.render('auth/register', { title: 'Register' });
 };
 
-export const registerUser = async (req, res, next) => {
+const registerUser = async (req, res, next) => {
   try {
     const { name, username, email, password } = req.body;
     
@@ -30,11 +30,11 @@ export const registerUser = async (req, res, next) => {
   }
 };
 
-export const renderLoginPage = (req, res) => {
+const renderLoginPage = (req, res) => {
   return res.render('auth/login', { title: 'Login' });
 };
 
-export const loginUser = async (req, res, next) => {
+const loginUser = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
@@ -62,7 +62,7 @@ export const loginUser = async (req, res, next) => {
     }
 
     // Regenerate session to prevent fixation
-    req.session.regenerate((err) => {
+    return req.session.regenerate((err) => {
       if (err) return next(err);
 
       req.session.user = {
@@ -82,7 +82,7 @@ export const loginUser = async (req, res, next) => {
   }
 };
 
-export const logoutUser = (req, res) => {
+const logoutUser = (req, res) => {
   req.session.destroy((err) => {
     if (err) {
       console.error('Error destroying session:', err);
@@ -90,3 +90,11 @@ export const logoutUser = (req, res) => {
     return res.redirect('/');
   });
 };
+
+export {
+  registerUser,
+  loginUser,
+  logoutUser,
+  renderRegisterPage,
+  renderLoginPage
+}
