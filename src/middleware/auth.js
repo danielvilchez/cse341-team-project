@@ -1,4 +1,4 @@
-export const loadSessionUser = (req, res, next) => {
+const loadSessionUser = (req, res, next) => {
   req.user = req.session.user || null;
   res.locals.user = req.user;
   next();
@@ -12,21 +12,21 @@ const hasRole = (req, role) => {
   return req.user && req.user.role === role;
 };
 
-export const requireApiLogin = (req, res, next) => {
+const requireApiLogin = (req, res, next) => {
   if (!isLoggedIn(req)) {
     return res.status(401).json({ message: "Authentication required" });
   }
   return next();
 };
 
-export const requirePageLogin = (req, res, next) => {
+const requirePageLogin = (req, res, next) => {
   if (!isLoggedIn(req)) {
     return res.redirect("/login");
   }
   return next();
 };
 
-export const requireApiRole = (role) => (req, res, next) => {
+const requireApiRole = (role) => (req, res, next) => {
   if (!isLoggedIn(req)) {
     return res.status(401).json({ message: "Authentication required" });
   }
@@ -36,7 +36,17 @@ export const requireApiRole = (role) => (req, res, next) => {
   return next();
 };
 
-export const requirePageRole = (role) => (req, res, next) => {
+const requireUserOwnerOrAdmin = (req, res, next) => {
+  if (!isLoggedIn(req)) {
+    return res.status(401).json({ message: "Authentication required" });
+  }
+  if (req.user.role !== 'admin' && req.user.id !== req.params.userId) {
+    return res.status(403).json({ message: "Forbidden" });
+  }
+  return next();
+};
+
+const requirePageRole = (role) => (req, res, next) => {
   if (!isLoggedIn(req)) {
     return res.redirect("/login");
   }
@@ -45,3 +55,12 @@ export const requirePageRole = (role) => (req, res, next) => {
   }
   return next();
 };
+
+export {
+  loadSessionUser,
+  requireApiLogin,
+  requirePageLogin,
+  requireUserOwnerOrAdmin,
+  requireApiRole,
+  requirePageRole
+}

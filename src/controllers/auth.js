@@ -2,12 +2,8 @@ import {
   createUser,
   verifyPassword,
   findUserByEmail,
-  findUserByUsername,
-  findUserById,
-  findAllUsers,
-  updateUserById,
-  deleteUserById } 
-from '../models/users.js';
+  findUserByUsername
+} from '../models/users.js';
 
 const renderRegisterPage = (req, res) => {
   return res.render('auth/register', { title: 'Register' });
