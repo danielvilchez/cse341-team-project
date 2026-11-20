@@ -199,4 +199,4 @@ The following tests will be performed locally before submitting the pull request
 
 - The User Admin page will be accessed through `/users-admin`.
 - The customer dashboard will include a link to `/users-admin`.
-- The route will be coordinated with the teammate responsible for the User Admin feature to ensure both feature sets integrate correctly.
+- The route was confirmed with the teammate responsible for the User Admin feature.
