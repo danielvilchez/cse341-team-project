@@ -5,6 +5,7 @@ import {
     updateUserById,
     deleteUserById
 } from '../models/users.js';
+import { invalidateUserSessions } from '../db/sessions.js';
 
 const toSafeUser = (user) => ({
     id: user._id.toString(),
@@ -121,6 +122,24 @@ const updateUserHandler = async (req, res) => {
     }
 
     try {
+        const roleIsBeingChanged = Object.prototype.hasOwnProperty.call(
+            normalizedUpdates,
+            'role'
+        );
+        if (roleIsBeingChanged) {
+            const currentUser = await findUserById(userId);
+            if (!currentUser) {
+                return res.status(404).json({ message: 'User not found' });
+            }
+
+            if (currentUser.role.name !== normalizedUpdates.role) {
+                const exceptSessionId = req.user.id === userId
+                    ? req.sessionID
+                    : undefined;
+                await invalidateUserSessions(userId, exceptSessionId);
+            }
+        }
+
         const user = await updateUserById(userId, normalizedUpdates);
         if (!user) {
             return res.status(404).json({ message: 'User not found' });

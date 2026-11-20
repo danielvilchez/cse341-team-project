@@ -1,4 +1,10 @@
 import { Router } from "express";
+
+import {
+    requireApiLogin,
+    requireUserOwnerOrAdmin
+} from "../middleware/auth.js"
+
 import {
     createBookingHandler,
     getAllBookingsHandler,
@@ -8,6 +14,12 @@ import {
 import { trainsApi } from "./trains.js";
 import { getTripsApi, getTripByIdApi } from "../controllers/trips.js";
 import { getSchedulesByTrip } from "../controllers/schedules.js";
+
+import {
+    getUsersHandler,
+    updateUserHandler,
+    deleteUserHandler
+} from "../controllers/users.js"
 
 const router = Router();
 
@@ -338,5 +350,11 @@ router.get("/api/trips/:id", getTripByIdApi);
  *         description: Internal server error
  */
 router.get("/api/trips/:id/schedules", getSchedulesByTrip);
+
+router.get("/api/users", requireApiLogin, getUsersHandler);
+
+router.put("/api/users/:userId", requireApiLogin, requireUserOwnerOrAdmin, updateUserHandler);
+
+router.delete("/api/users/:userId", requireApiLogin, requireUserOwnerOrAdmin, deleteUserHandler);
 
 export default router;
