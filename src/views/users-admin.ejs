@@ -21,16 +21,18 @@
         </form>
     <% } %>
 
-    <div class="users-toolbar">
-        <div class="users-view-controls" role="group" aria-label="User display mode">
-            <button id="users-cards-button" type="button" aria-label="Card view" aria-pressed="true">
-                <img src="/images/icons/grid.svg" alt="" aria-hidden="true">
-            </button>
-            <button id="users-list-button" type="button" aria-label="List view" aria-pressed="false">
-                <img src="/images/icons/list-check.svg" alt="" aria-hidden="true">
-            </button>
+    <% if (isAdmin) { %>
+        <div class="users-toolbar" id="users-toolbar">
+            <div class="users-view-controls" role="group" aria-label="User display mode">
+                <button id="users-cards-button" type="button" aria-label="Card view" aria-pressed="true">
+                    <img src="/images/icons/grid.svg" alt="" aria-hidden="true">
+                </button>
+                <button id="users-list-button" type="button" aria-label="List view" aria-pressed="false">
+                    <img src="/images/icons/list-check.svg" alt="" aria-hidden="true">
+                </button>
+            </div>
         </div>
-    </div>
+    <% } %>
 
     <p id="users-loading" role="status" aria-live="polite">Loading users...</p>
     <p id="users-empty" role="status" hidden>No users found.</p>
@@ -39,7 +41,7 @@
         <button id="users-retry" type="button">Retry</button>
     </div>
     <p id="users-message" role="status" aria-live="polite" hidden></p>
-    <div id="users-list" class="users-grid" data-view="cards" hidden></div>
+    <div id="users-list" class="users-grid" data-view="<%= isAdmin ? 'cards' : 'list' %>" hidden></div>
 
     <nav id="users-pagination" class="users-pagination" aria-label="User results pages" hidden>
         <button id="users-previous-page" type="button">Previous</button>
@@ -60,10 +62,12 @@
                     <dt>Email</dt>
                     <dd data-field="email"></dd>
                 </div>
-                <div>
-                    <dt>Role</dt>
-                    <dd data-field="role"></dd>
-                </div>
+                <% if (isAdmin) { %>
+                    <div data-field="role-details">
+                        <dt>Role</dt>
+                        <dd data-field="role"></dd>
+                    </div>
+                <% } %>
             </dl>
         </div>
         <div class="user-card-actions" data-field="actions">

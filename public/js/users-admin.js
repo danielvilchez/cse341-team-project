@@ -10,6 +10,7 @@ const hookUsersAdmin = async () => {
     const messageEl = document.getElementById('users-message');
     const searchForm = document.getElementById('users-search-form');
     const searchInput = document.getElementById('users-search-input');
+    const toolbarEl = document.getElementById('users-toolbar');
     const cardsButton = document.getElementById('users-cards-button');
     const listButton = document.getElementById('users-list-button');
     const paginationEl = document.getElementById('users-pagination');
@@ -25,7 +26,7 @@ const hookUsersAdmin = async () => {
 
     if (!rootEl || !listEl || !templateEl || !loadingEl || !emptyEl
         || !errorEl || !errorMessageEl || !retryEl || !messageEl
-        || !cardsButton || !listButton || !paginationEl || !previousPageButton
+        || !paginationEl || !previousPageButton
         || !nextPageButton || !pageStatusEl || !deleteDialog || !deleteForm
         || !deleteUserName || !deletePasswordInput || !deleteErrorEl
         || !cancelDeleteButton) {
@@ -40,7 +41,7 @@ const hookUsersAdmin = async () => {
     let totalPages = 0;
     let totalUsers = 0;
     let currentQuery = '';
-    let viewMode = 'cards';
+    let viewMode = canEditRoles ? 'cards' : 'list';
     let pendingDeleteUser = null;
 
     const setLoadState = (state) => {
@@ -78,10 +79,15 @@ const hookUsersAdmin = async () => {
     };
 
     const updateView = (mode) => {
+        if (!canEditRoles) {
+            mode = 'list';
+        }
         viewMode = mode;
         listEl.dataset.view = mode;
-        cardsButton.setAttribute('aria-pressed', String(mode === 'cards'));
-        listButton.setAttribute('aria-pressed', String(mode === 'list'));
+        if (cardsButton && listButton) {
+            cardsButton.setAttribute('aria-pressed', String(mode === 'cards'));
+            listButton.setAttribute('aria-pressed', String(mode === 'list'));
+        }
     };
 
     const updatePagination = () => {
@@ -97,6 +103,7 @@ const hookUsersAdmin = async () => {
         const nameEl = card.querySelector('[data-field="name"]');
         const usernameEl = card.querySelector('[data-field="username"]');
         const emailEl = card.querySelector('[data-field="email"]');
+        const roleDetailsEl = card.querySelector('[data-field="role-details"]');
         const roleEl = card.querySelector('[data-field="role"]');
         const nameInput = card.querySelector('[data-field="name-input"]');
         const usernameInput = card.querySelector('[data-field="username-input"]');
@@ -112,7 +119,12 @@ const hookUsersAdmin = async () => {
         nameEl.textContent = user.name;
         usernameEl.textContent = user.username;
         emailEl.textContent = user.email;
-        roleEl.textContent = user.role;
+        if (roleEl) {
+            roleEl.textContent = user.role;
+        }
+        if (roleDetailsEl) {
+            roleDetailsEl.hidden = !canEditRoles;
+        }
         nameInput.value = user.name;
         usernameInput.value = user.username;
         emailInput.value = user.email;
@@ -171,6 +183,9 @@ const hookUsersAdmin = async () => {
                     currentPage = 1;
                     if (searchForm) {
                         searchForm.hidden = true;
+                    }
+                    if (toolbarEl) {
+                        toolbarEl.hidden = true;
                     }
                     if (searchInput) {
                         searchInput.value = '';
@@ -273,8 +288,10 @@ const hookUsersAdmin = async () => {
         });
     }
 
-    cardsButton.addEventListener('click', () => updateView('cards'));
-    listButton.addEventListener('click', () => updateView('list'));
+    if (cardsButton && listButton) {
+        cardsButton.addEventListener('click', () => updateView('cards'));
+        listButton.addEventListener('click', () => updateView('list'));
+    }
     previousPageButton.addEventListener('click', async () => {
         if (currentPage > 1) {
             await loadUsers(currentPage - 1);

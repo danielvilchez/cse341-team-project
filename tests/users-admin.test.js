@@ -83,7 +83,6 @@ const makeUserCard = (withRole) => {
         '[data-field="name"]': new MockElement(),
         '[data-field="username"]': new MockElement(),
         '[data-field="email"]': new MockElement(),
-        '[data-field="role"]': new MockElement(),
         '[data-field="name-input"]': new MockElement(),
         '[data-field="username-input"]': new MockElement(),
         '[data-field="email-input"]': new MockElement(),
@@ -94,6 +93,8 @@ const makeUserCard = (withRole) => {
         'button[data-action="cancel-edit"]': new MockElement()
     };
     if (withRole) {
+        fields['[data-field="role-details"]'] = new MockElement();
+        fields['[data-field="role"]'] = new MockElement();
         fields['[data-field="role-input"]'] = new MockElement();
         fields['[data-field="role-control"]'] = new MockElement();
     }
@@ -113,8 +114,6 @@ const runUsersScript = async ({ fetch, currentUserId = 'user-1', isAdmin = false
         'users-error-message',
         'users-retry',
         'users-message',
-        'users-cards-button',
-        'users-list-button',
         'users-pagination',
         'users-previous-page',
         'users-next-page',
@@ -132,6 +131,9 @@ const runUsersScript = async ({ fetch, currentUserId = 'user-1', isAdmin = false
         canEditRoles: String(isAdmin)
     };
     if (isAdmin) {
+        elements['users-toolbar'] = new MockElement();
+        elements['users-cards-button'] = new MockElement();
+        elements['users-list-button'] = new MockElement();
         elements['users-search-form'] = new MockElement();
         elements['users-search-input'] = new MockElement();
     }
@@ -179,10 +181,13 @@ describe('User administration page', () => {
 
         expect(response.text).toContain('id="users-admin"');
         expect(response.text).toContain('src="/js/users-admin.js"');
-        expect(response.text).toContain('src="/images/icons/grid.svg"');
+        expect(response.text).toContain('data-view="list"');
         expect(response.text).not.toContain('page-customer@example.com');
         expect(response.text).not.toContain('page-customer User');
         expect(response.text).not.toContain('id="users-search-form"');
+        expect(response.text).not.toContain('id="users-cards-button"');
+        expect(response.text).not.toContain('id="users-list-button"');
+        expect(response.text).not.toContain('data-field="role-details"');
         expect(response.text).not.toContain('data-field="role-input"');
     });
 
@@ -191,6 +196,8 @@ describe('User administration page', () => {
         const response = await (await login(admin)).get('/users-admin').expect(200);
 
         expect(response.text).toContain('id="users-search-form"');
+        expect(response.text).toContain('id="users-cards-button"');
+        expect(response.text).toContain('id="users-list-button"');
         expect(response.text).toContain('data-field="role-input"');
         expect(response.text).toContain('data-can-edit-roles="true"');
         expect(response.text).toContain('id="user-delete-dialog"');
@@ -211,6 +218,7 @@ describe('User administration page', () => {
         const card = elements['users-list'].children[0];
         expect(card.fields['[data-field="name"]'].textContent)
             .toBe('<img src=x onerror=alert(1)>');
+        expect(elements['users-list'].dataset.view).toBe('list');
         expect(elements['users-list'].hidden).toBe(false);
         expect(elements['users-loading'].hidden).toBe(true);
 
