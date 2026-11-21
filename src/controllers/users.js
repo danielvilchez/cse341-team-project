@@ -1,11 +1,18 @@
 import mongoose from 'mongoose';
 import {
-    findAllUsers,
+    countUsers,
+    findUserPasswordHashById,
     findUserById,
+    findUsersPage,
     updateUserById,
-    deleteUserById
+    deleteUserById,
+    verifyPassword
 } from '../models/users.js';
 import { invalidateUserSessions } from '../db/sessions.js';
+
+const DEFAULT_PAGE_SIZE = 25;
+const MAX_PAGE_SIZE = 100;
+const MAX_SEARCH_LENGTH = 100;
 
 const toSafeUser = (user) => ({
     id: user._id.toString(),
@@ -14,6 +21,15 @@ const toSafeUser = (user) => ({
     email: user.email,
     role: user.role.name
 });
+
+const parsePositiveInteger = (value) => {
+    if (typeof value !== 'string' || !/^[1-9]\d*$/.test(value)) {
+        return null;
+    }
+
+    const parsed = Number(value);
+    return Number.isSafeInteger(parsed) ? parsed : null;
+};
 
 const handleUserError = (error, res, operation) => {
     if (error.code === 11000) {
@@ -40,20 +56,52 @@ const getUsersHandler = async (req, res) => {
     }
 
     try {
-        let users;
+        const searchValue = req.query.q ?? '';
+        const pageValue = req.query.page;
+        const limitValue = req.query.limit;
+        const page = pageValue === undefined ? 1 : parsePositiveInteger(pageValue);
+        const limit = limitValue === undefined
+            ? DEFAULT_PAGE_SIZE
+            : parsePositiveInteger(limitValue);
+
+        if (
+            typeof searchValue !== 'string' ||
+            searchValue.length > MAX_SEARCH_LENGTH ||
+            page === null ||
+            limit === null ||
+            limit > MAX_PAGE_SIZE ||
+            (page !== null && limit !== null && !Number.isSafeInteger((page - 1) * limit))
+        ) {
+            return res.status(400).json({ message: 'Invalid user search or pagination parameters.' });
+        }
+
+        const search = searchValue.trim();
         if (req.user.role === 'admin') {
-            users = await findAllUsers();
-        } else if (req.user.role === 'customer') {
+            const [users, total] = await Promise.all([
+                findUsersPage({ search, page, limit }),
+                countUsers(search)
+            ]);
+            const totalPages = Math.ceil(total / limit);
+
+            return res.status(200).json({
+                users: users.map(toSafeUser),
+                pagination: { page, limit, total, totalPages }
+            });
+        }
+
+        if (req.user.role === 'customer') {
             const user = await findUserById(req.user.id);
             if (!user) {
                 return res.status(404).json({ message: 'User not found' });
             }
-            users = [user];
-        } else {
-            return res.status(403).json({ message: 'Forbidden' });
+
+            return res.status(200).json({
+                users: [toSafeUser(user)],
+                pagination: { page: 1, limit, total: 1, totalPages: 1 }
+            });
         }
 
-        return res.status(200).json({ users: users.map(toSafeUser) });
+        return res.status(403).json({ message: 'Forbidden' });
     } catch (error) {
         return handleUserError(error, res, 'fetching users');
     }
@@ -166,7 +214,28 @@ const deleteUserHandler = async (req, res) => {
         return res.status(400).json({ message: 'Invalid user data.' });
     }
 
+    const body = req.body ?? {};
+    if (
+        typeof body !== 'object' ||
+        Array.isArray(body) ||
+        Object.keys(body).some((field) => field !== 'password') ||
+        typeof body.password !== 'string' ||
+        !body.password
+    ) {
+        return res.status(400).json({ message: 'Current password is required.' });
+    }
+
     try {
+        const passwordHash = await findUserPasswordHashById(req.user.id);
+        if (!passwordHash) {
+            return res.status(401).json({ message: 'Authentication required' });
+        }
+
+        const passwordMatches = await verifyPassword(body.password, passwordHash);
+        if (!passwordMatches) {
+            return res.status(403).json({ message: 'Current password is incorrect.' });
+        }
+
         const deletedUser = await deleteUserById(userId);
         if (!deletedUser) {
             return res.status(404).json({ message: 'User not found' });

@@ -49,6 +49,31 @@ const findAllUsers = async () => {
         .exec();
 }
 
+const findUsersPage = async ({ search, page, limit }) => {
+    const filter = search ? { $text: { $search: search } } : {};
+    const sort = search
+        ? { score: { $meta: 'textScore' }, _id: 1 }
+        : { _id: 1 };
+
+    return User.find(filter)
+        .select('-passwordHash')
+        .populate('role')
+        .sort(sort)
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .exec();
+}
+
+const countUsers = async (search) => {
+    const filter = search ? { $text: { $search: search } } : {};
+    return User.countDocuments(filter).exec();
+}
+
+const findUserPasswordHashById = async (userID) => {
+    const user = await User.findById(userID).select('passwordHash').exec();
+    return user ? user.passwordHash : null;
+}
+
 const updateUserById = async (userID, updates) => {
     if (!updates || typeof updates !== 'object' || Array.isArray(updates)) {
         throw new TypeError('User updates must be an object.');
@@ -109,6 +134,9 @@ export {
     findUserById,
     findUserByUsername,
     findAllUsers,
+    findUsersPage,
+    countUsers,
+    findUserPasswordHashById,
     updateUserById,
     deleteUserById
 }
