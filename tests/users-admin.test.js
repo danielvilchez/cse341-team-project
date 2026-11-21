@@ -202,6 +202,7 @@ describe('User administration page', () => {
         expect(response.text).toContain('data-can-edit-roles="true"');
         expect(response.text).toContain('id="user-delete-dialog"');
         expect(response.text).toContain('This action is irreversible.');
+        expect(response.text).toContain("not the selected user's account.");
     });
 
     test('renders API users as text and displays an explicit load error', async () => {
