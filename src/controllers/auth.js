@@ -7,19 +7,19 @@ export const renderRegisterPage = (req, res) => {
 export const registerUser = async (req, res, next) => {
   try {
     const { name, username, email, password } = req.body;
-    
+
     if (!name || !username || !email || !password) {
-      return res.status(400).render('auth/register', { 
-        title: 'Register', 
-        error: 'All fields are required.' 
+      return res.status(400).render('auth/register', {
+        title: 'Register',
+        error: 'All fields are required.'
       });
     }
 
     const existingUser = await findUserByEmail(email);
     if (existingUser) {
-      return res.status(400).render('auth/register', { 
-        title: 'Register', 
-        error: 'Email is already registered.' 
+      return res.status(400).render('auth/register', {
+        title: 'Register',
+        error: 'Email is already registered.'
       });
     }
 
@@ -39,30 +39,30 @@ export const loginUser = async (req, res, next) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).render('auth/login', { 
-        title: 'Login', 
-        error: 'Email and password are required.' 
+      return res.status(400).render('auth/login', {
+        title: 'Login',
+        error: 'Email and password are required.'
       });
     }
 
     const user = await findUserByEmail(email);
     if (!user) {
-      return res.status(401).render('auth/login', { 
-        title: 'Login', 
-        error: 'Invalid email or password.' 
+      return res.status(401).render('auth/login', {
+        title: 'Login',
+        error: 'Invalid email or password.'
       });
     }
 
     const isValid = await verifyPassword(password, user.passwordHash);
     if (!isValid) {
-      return res.status(401).render('auth/login', { 
-        title: 'Login', 
-        error: 'Invalid email or password.' 
+      return res.status(401).render('auth/login', {
+        title: 'Login',
+        error: 'Invalid email or password.'
       });
     }
 
     // Regenerate session to prevent fixation
-    req.session.regenerate((err) => {
+    return req.session.regenerate((err) => {
       if (err) return next(err);
 
       req.session.user = {
