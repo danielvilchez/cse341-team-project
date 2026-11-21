@@ -1,10 +1,15 @@
-import { createUser, findUserByEmail, verifyPassword } from '../models/users.js';
+import { 
+  createUser,
+  verifyPassword,
+  findUserByEmail,
+  findUserByUsername
+} from '../models/users.js';
 
-export const renderRegisterPage = (req, res) => {
+const renderRegisterPage = (req, res) => {
   return res.render('auth/register', { title: 'Register' });
 };
 
-export const registerUser = async (req, res, next) => {
+const registerUser = async (req, res, next) => {
   try {
     const { name, username, email, password } = req.body;
     
@@ -30,26 +35,33 @@ export const registerUser = async (req, res, next) => {
   }
 };
 
-export const renderLoginPage = (req, res) => {
+const renderLoginPage = (req, res) => {
   return res.render('auth/login', { title: 'Login' });
 };
 
-export const loginUser = async (req, res, next) => {
+const loginUser = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { identifier, password } = req.body;
+    const normalizedIdentifier = typeof identifier === 'string'
+      ? identifier.trim().toLowerCase()
+      : '';
 
-    if (!email || !password) {
+    if (!normalizedIdentifier || typeof password !== 'string' || !password) {
       return res.status(400).render('auth/login', { 
         title: 'Login', 
-        error: 'Email and password are required.' 
+        error: 'Email or username and password are required.' 
       });
     }
 
-    const user = await findUserByEmail(email);
+    let user = await findUserByEmail(normalizedIdentifier);
+    if (!user) {
+      user = await findUserByUsername(normalizedIdentifier);
+    }
+    
     if (!user) {
       return res.status(401).render('auth/login', { 
         title: 'Login', 
-        error: 'Invalid email or password.' 
+        error: 'Invalid email or username and password.' 
       });
     }
 
@@ -57,12 +69,12 @@ export const loginUser = async (req, res, next) => {
     if (!isValid) {
       return res.status(401).render('auth/login', { 
         title: 'Login', 
-        error: 'Invalid email or password.' 
+        error: 'Invalid email or username and password.' 
       });
     }
 
     // Regenerate session to prevent fixation
-    req.session.regenerate((err) => {
+    return req.session.regenerate((err) => {
       if (err) return next(err);
 
       req.session.user = {
@@ -82,7 +94,7 @@ export const loginUser = async (req, res, next) => {
   }
 };
 
-export const logoutUser = (req, res) => {
+const logoutUser = (req, res) => {
   req.session.destroy((err) => {
     if (err) {
       console.error('Error destroying session:', err);
@@ -90,3 +102,11 @@ export const logoutUser = (req, res) => {
     return res.redirect('/');
   });
 };
+
+export {
+  registerUser,
+  loginUser,
+  logoutUser,
+  renderRegisterPage,
+  renderLoginPage
+}
