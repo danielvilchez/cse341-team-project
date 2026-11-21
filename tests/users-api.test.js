@@ -57,12 +57,61 @@ describe('User API routes', () => {
             .expect(200);
         expect(customerResponse.body.users).toHaveLength(1);
         expect(customerResponse.body.users[0].id).toBe(customer._id.toString());
+        expect(customerResponse.body.pagination).toEqual({
+            page: 1,
+            limit: 25,
+            total: 1,
+            totalPages: 1
+        });
 
         const adminResponse = await (await login(admin))
             .get('/api/users')
             .expect(200);
         expect(adminResponse.body.users).toHaveLength(3);
+        expect(adminResponse.body.pagination.total).toBe(3);
         expect(adminResponse.body.users.every((user) => !('passwordHash' in user))).toBe(true);
+    });
+
+    test('searches and paginates admin results on the server', async () => {
+        await User.collection.createIndex({
+            name: 'text',
+            username: 'text',
+            email: 'text'
+        });
+        const firstMatch = await createAccount('match-first');
+        const secondMatch = await createAccount('match-second');
+        await createAccount('unrelated-person');
+        const admin = await createAccount('search-admin', 'admin');
+        const agent = await login(admin);
+
+        const firstPage = await agent
+            .get('/api/users?q=match&page=1&limit=1')
+            .expect(200);
+        expect(firstPage.body.users).toHaveLength(1);
+        expect(firstPage.body.pagination).toEqual({
+            page: 1,
+            limit: 1,
+            total: 2,
+            totalPages: 2
+        });
+
+        const secondPage = await agent
+            .get('/api/users?q=match&page=2&limit=1')
+            .expect(200);
+        expect(secondPage.body.users).toHaveLength(1);
+        const pageIds = [firstPage.body.users[0].id, secondPage.body.users[0].id];
+        expect(new Set(pageIds).size).toBe(2);
+        expect(pageIds).toContain(firstMatch._id.toString());
+        expect(pageIds).toContain(secondMatch._id.toString());
+    });
+
+    test('rejects invalid user search and pagination parameters', async () => {
+        const admin = await createAccount('search-admin', 'admin');
+        const agent = await login(admin);
+
+        await agent.get('/api/users?page=0').expect(400);
+        await agent.get('/api/users?limit=101').expect(400);
+        await agent.get(`/api/users?q=${'a'.repeat(101)}`).expect(400);
     });
 
     test('allows a customer to update their own account', async () => {
@@ -105,7 +154,10 @@ describe('User API routes', () => {
             .expect(200);
         expect(updateResponse.body.user.name).toBe('Updated by Admin');
 
-        await agent.delete(`/api/users/${customer._id}`).expect(204);
+        await agent
+            .delete(`/api/users/${customer._id}`)
+            .send({ password })
+            .expect(204);
     });
 
     test('invalidates the target user sessions when an admin changes their role', async () => {
@@ -168,14 +220,36 @@ describe('User API routes', () => {
             .put(`/api/users/${missingUserId}`)
             .send({ name: 'Missing User' })
             .expect(404);
-        await agent.delete(`/api/users/${missingUserId}`).expect(404);
+        await agent
+            .delete(`/api/users/${missingUserId}`)
+            .send({ password })
+            .expect(404);
+    });
+
+    test('requires the current account password and rejects an incorrect password for deletion', async () => {
+        const admin = await createAccount('admin', 'admin');
+        const customer = await createAccount('customer');
+        const agent = await login(admin);
+
+        await agent
+            .delete(`/api/users/${customer._id}`)
+            .send({ password: '' })
+            .expect(400);
+        await agent
+            .delete(`/api/users/${customer._id}`)
+            .send({ password: 'WrongPassword123' })
+            .expect(403);
+        await expect(findUserById(customer._id.toString())).resolves.not.toBeNull();
     });
 
     test('returns 204 and destroys the session after self-deletion', async () => {
         const customer = await createAccount('customer');
         const agent = await login(customer);
 
-        await agent.delete(`/api/users/${customer._id}`).expect(204);
+        await agent
+            .delete(`/api/users/${customer._id}`)
+            .send({ password })
+            .expect(204);
         await agent.get('/api/users').expect(401);
         await expect(findUserById(customer._id.toString())).resolves.toBeNull();
     });

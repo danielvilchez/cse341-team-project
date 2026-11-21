@@ -31,7 +31,8 @@ describe('User API controllers', () => {
         const user = await createTestUser('customer', 'customer@example.com');
         await createTestUser('another', 'another@example.com');
         const req = {
-            user: { id: user._id.toString(), role: 'customer' }
+            user: { id: user._id.toString(), role: 'customer' },
+            query: {}
         };
         const res = createResponse();
 
@@ -45,20 +46,22 @@ describe('User API controllers', () => {
                 username: 'customer',
                 email: 'customer@example.com',
                 role: 'customer'
-            }]
+            }],
+            pagination: { page: 1, limit: 25, total: 1, totalPages: 1 }
         });
     });
 
     test('returns all users to an admin', async () => {
         await createTestUser('customer', 'customer@example.com');
         await createTestUser('another', 'another@example.com');
-        const req = { user: { id: 'admin-id', role: 'admin' } };
+        const req = { user: { id: 'admin-id', role: 'admin' }, query: {} };
         const res = createResponse();
 
         await getUsersHandler(req, res);
 
         expect(res.status).toHaveBeenCalledWith(200);
         expect(res.json.mock.calls[0][0].users).toHaveLength(2);
+        expect(res.json.mock.calls[0][0].pagination.total).toBe(2);
         expect(res.json.mock.calls[0][0].users[0]).not.toHaveProperty('passwordHash');
     });
 
@@ -67,6 +70,7 @@ describe('User API controllers', () => {
         const req = {
             user: { id: user._id.toString(), role: 'customer' },
             params: { userId: user._id.toString() },
+            query: {},
             body: { name: 'Updated Customer' },
             session: { user: { id: user._id.toString(), name: 'customer User', role: 'customer' } }
         };
@@ -85,6 +89,7 @@ describe('User API controllers', () => {
         const req = {
             user: { id: user._id.toString(), role: 'customer' },
             params: { userId: user._id.toString() },
+            query: {},
             body: { role: 'admin' }
         };
         const res = createResponse();
@@ -100,6 +105,7 @@ describe('User API controllers', () => {
         const req = {
             user: { id: user._id.toString(), role: 'customer' },
             params: { userId: user._id.toString() },
+            query: {},
             body: { name: '  ' }
         };
         const res = createResponse();
@@ -115,6 +121,7 @@ describe('User API controllers', () => {
         const req = {
             user: { id: user._id.toString(), role: 'customer' },
             params: { userId: user._id.toString() },
+            body: { password: 'InitialPassword123' },
             session: {
                 destroy(callback) {
                     callback(null);
