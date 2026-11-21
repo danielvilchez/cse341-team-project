@@ -47,6 +47,22 @@ describe('User API routes', () => {
         await request(app).delete(`/api/users/${userId}`).expect(401);
     });
 
+    test.each(['put', 'delete'])(
+        'returns a JSON 400 response for malformed JSON on user %s requests',
+        async (method) => {
+            const user = await createAccount('malformed-json');
+            const agent = await login(user);
+
+            const response = await agent[method](`/api/users/${user._id}`)
+                .set('Content-Type', 'application/json')
+                .send('{"name":');
+
+            expect(response.status).toBe(400);
+            expect(response.headers['content-type']).toMatch(/application\/json/);
+            expect(response.body).toEqual({ message: 'Invalid user data.' });
+        }
+    );
+
     test('returns only the current user to a customer and all users to an admin', async () => {
         const customer = await createAccount('customer');
         await createAccount('another');

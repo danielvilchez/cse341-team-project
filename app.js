@@ -73,6 +73,17 @@ app.use((req, res, next) => {
 });
 
 app.use((err, req, res, next) => {
+    const isUserMutation = ['PUT', 'DELETE'].includes(req.method)
+        && /^\/api\/users\/[^/]+$/.test(req.path);
+
+    if (isUserMutation && err.type === 'entity.parse.failed') {
+        return res.status(400).json({ message: 'Invalid user data.' });
+    }
+
+    return next(err);
+});
+
+app.use((err, req, res, next) => {
     const status = err.status || 500;
     const template = status === 404 ? '404' : '500';
     const context = {
