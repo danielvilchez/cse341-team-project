@@ -109,6 +109,123 @@ const router = Router();
  *         error:
  *           type: string
  *           example: Invalid booking data
+ *     User:
+ *       type: object
+ *       description: Safe user profile. Passwords and password hashes are never returned.
+ *       required:
+ *         - id
+ *         - name
+ *         - username
+ *         - email
+ *         - role
+ *       properties:
+ *         id:
+ *           type: string
+ *           description: User ID
+ *           example: 64f000000000000000000001
+ *         name:
+ *           type: string
+ *           example: Sample User
+ *         username:
+ *           type: string
+ *           example: sampleuser
+ *         email:
+ *           type: string
+ *           format: email
+ *           example: sample@example.com
+ *         role:
+ *           type: string
+ *           enum:
+ *             - customer
+ *             - admin
+ *           example: customer
+ *     UserListResponse:
+ *       type: object
+ *       required:
+ *         - users
+ *         - pagination
+ *       properties:
+ *         users:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/User'
+ *         pagination:
+ *           type: object
+ *           required:
+ *             - page
+ *             - limit
+ *             - total
+ *             - totalPages
+ *           properties:
+ *             page:
+ *               type: integer
+ *             limit:
+ *               type: integer
+ *             total:
+ *               type: integer
+ *             totalPages:
+ *               type: integer
+ *     UserResponse:
+ *       type: object
+ *       required:
+ *         - user
+ *       properties:
+ *         user:
+ *           $ref: '#/components/schemas/User'
+ *     UserUpdateRequest:
+ *       type: object
+ *       additionalProperties: false
+ *       description: Partial update. Omitted fields remain unchanged; an empty object is allowed.
+ *       properties:
+ *         name:
+ *           type: string
+ *           minLength: 1
+ *           example: Updated Name
+ *         username:
+ *           type: string
+ *           minLength: 1
+ *           description: Normalized to lowercase.
+ *           example: updateduser
+ *         email:
+ *           type: string
+ *           format: email
+ *           description: Normalized to lowercase.
+ *           example: updated@example.com
+ *         password:
+ *           type: string
+ *           format: password
+ *           writeOnly: true
+ *           description: New plaintext password accepted only in the request; it is never returned.
+ *         role:
+ *           type: string
+ *           enum:
+ *             - customer
+ *             - admin
+ *           description: Only admins may update a user's role.
+ *     UserDeleteRequest:
+ *       type: object
+ *       additionalProperties: false
+ *       required:
+ *         - password
+ *       properties:
+ *         password:
+ *           type: string
+ *           format: password
+ *           writeOnly: true
+ *           description: Current password of the authenticated user, required to confirm deletion.
+ *     UserError:
+ *       type: object
+ *       required:
+ *         - message
+ *       properties:
+ *         message:
+ *           type: string
+ *           example: Invalid user data.
+ *   securitySchemes:
+ *     sessionCookie:
+ *       type: apiKey
+ *       in: cookie
+ *       name: connect.sid
  */
 
 /**
@@ -351,10 +468,207 @@ router.get("/api/trips/:id", getTripByIdApi);
  */
 router.get("/api/trips/:id/schedules", getSchedulesByTrip);
 
+/**
+ * @swagger
+ * /api/users:
+ *   get:
+ *     summary: List users visible to the authenticated user
+ *     description: Admins receive all users. Customers receive only their own user record. Passwords and password hashes are never returned.
+ *     tags:
+ *       - Users
+ *     security:
+ *       - sessionCookie: []
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         required: false
+ *         description: Text search across name, username, and email. Search is applied to admin results; customers still receive only their own record.
+ *         schema:
+ *           type: string
+ *           maxLength: 100
+ *       - in: query
+ *         name: page
+ *         required: false
+ *         description: One-based result page; defaults to 1.
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         description: Page size; defaults to 25 and cannot exceed 100.
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *     responses:
+ *       200:
+ *         description: Safe user records and pagination metadata
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserListResponse'
+ *       400:
+ *         description: Invalid search or pagination parameters
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserError'
+ *       401:
+ *         description: Authentication required
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserError'
+ *       403:
+ *         description: The authenticated account does not have an allowed role
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserError'
+ *       404:
+ *         description: The authenticated customer's user record was not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserError'
+ *       500:
+ *         description: Unexpected server or database error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserError'
+ */
 router.get("/api/users", requireApiLogin, getUsersHandler);
 
+/**
+ * @swagger
+ * /api/users/{userId}:
+ *   put:
+ *     summary: Partially update a user
+ *     description: Customers may update their own account; admins may update any account. Only admins may change a role. Passwords and password hashes are never returned.
+ *     tags:
+ *       - Users
+ *     security:
+ *       - sessionCookie: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         description: MongoDB ID of the user to update
+ *         schema:
+ *           type: string
+ *           pattern: '^[a-fA-F0-9]{24}$'
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UserUpdateRequest'
+ *     responses:
+ *       200:
+ *         description: User updated; response contains only the safe user representation
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserResponse'
+ *       400:
+ *         description: Invalid user ID or update data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserError'
+ *       401:
+ *         description: Authentication required
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserError'
+ *       403:
+ *         description: Customer attempted to update another user or change a role
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserError'
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserError'
+ *       409:
+ *         description: Username or email conflicts with existing data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserError'
+ *       500:
+ *         description: Unexpected server or database error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserError'
+ */
 router.put("/api/users/:userId", requireApiLogin, requireUserOwnerOrAdmin, updateUserHandler);
 
+/**
+ * @swagger
+ * /api/users/{userId}:
+ *   delete:
+ *     summary: Delete a user
+ *     description: Customers may delete only their own account; admins may delete any account. The authenticated user's current password must be supplied to confirm deletion. Deleting your own account ends the session.
+ *     tags:
+ *       - Users
+ *     security:
+ *       - sessionCookie: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         description: MongoDB ID of the user to delete
+ *         schema:
+ *           type: string
+ *           pattern: '^[a-fA-F0-9]{24}$'
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UserDeleteRequest'
+ *     responses:
+ *       204:
+ *         description: User deleted; no response body
+ *       400:
+ *         description: Invalid user ID or missing current password
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserError'
+ *       401:
+ *         description: Authentication required
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserError'
+ *       403:
+ *         description: Customer attempted to delete another user or the supplied current password is incorrect
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserError'
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserError'
+ *       500:
+ *         description: Unexpected server, database, or session error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserError'
+ */
 router.delete("/api/users/:userId", requireApiLogin, requireUserOwnerOrAdmin, deleteUserHandler);
 
 export default router;
