@@ -7,7 +7,7 @@ export const createUser = async (name, username, email, password) => {
   if (!customerRole) throw new Error('Default customer role not found');
 
   const passwordHash = await bcrypt.hash(password, 12);
-  
+
   const newUser = await User.create({
     name,
     username,
@@ -21,6 +21,10 @@ export const createUser = async (name, username, email, password) => {
 
 export const findUserByEmail = async (email) => {
   return User.findOne({ email }).populate('role');
+};
+
+export const findUserById = async (userId) => {
+  return User.findById(userId).select('email');
 };
 
 export const verifyPassword = async (password, passwordHash) => {
