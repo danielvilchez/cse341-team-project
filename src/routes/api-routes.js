@@ -274,7 +274,7 @@ router.get('/api/bookings/:bookingId', getBookingByIdHandler);
  * /api/ticket-classes:
  *   get:
  *     summary: Get ticket classes
- *     description: Returns all ticket classes, or only those available on a specific day when the day query parameter is provided.
+ *     description: Returns all ticket classes, or only those available on a specific day when the day query parameter is provided. The days field is optional and is only present when the class is limited to specific days.
  *     tags:
  *       - Ticket Classes
  *     parameters:
@@ -297,30 +297,29 @@ router.get('/api/bookings/:bookingId', getBookingByIdHandler);
  *         description: A list of ticket classes
  *         content:
  *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 type: object
+ *             example:
+ *               - class: "first"
+ *                 name: "First Class"
+ *                 pricePerKm: 250
+ *                 amenities:
+ *                   - "Private compartment"
+ *                   - "Multi-course meal"
+ *                   - "Champagne service"
+ *                   - "Priority boarding"
+ *                   - "Souvenir gift"
+ *                 description: "Ultimate luxury with private seating and full dining service"
  *       400:
  *         description: Invalid day in query named 'day'
  *         content:
  *           application/json:
- *             schema:
-  *               type: object
-  *               properties:
-  *                 message:
-  *                   type: string
-  *                   example: Invalid day in query named 'day'
+ *             example:
+ *               message: "Invalid day in query named 'day'"
  *       500:
  *         description: Error fetching ticket classes
  *         content:
  *           application/json:
- *           schema:
-  *               type: object
-  *               properties:
-  *                 message:
-  *                   type: string
-  *                   example: Error fetching ticket classes
+ *             example:
+ *               message: "Error fetching ticket classes"
  */
 router.get("/api/ticket-classes", getTicketClasses);
 
