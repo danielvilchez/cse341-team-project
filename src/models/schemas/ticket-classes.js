@@ -2,6 +2,10 @@ import mongoose from "mongoose";
 
 const ticketClassSchema = new mongoose.Schema(
     {
+    	class:{
+    		type: String,
+    		required:[true, "class is required"],	
+    	},
         name:{
             type: String,
             required:[true, "name is required"],    

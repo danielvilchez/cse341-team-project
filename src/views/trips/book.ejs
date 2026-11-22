@@ -194,8 +194,110 @@
     const selectedDayLabels = document.querySelectorAll('.days-display label');
     const passengersList = document.getElementById('passengersList');
     const addPassengerBtn = document.getElementById('addPassenger');
-    const ticketRadios = document.querySelectorAll('input[name="ticketClass"]');
+    let ticketRadios = document.querySelectorAll('input[name="ticketClass"]');
     
+    const getClasses = async (day) => {
+        let res = null;
+        let api = `/api/ticket-classes${day ? "?day="+day : ""}`;
+
+        try {
+            res = await fetch(api);
+            if(!res.ok){
+                throw new Error(`Unable to get classes due to error code (${res.status})`);
+            }
+
+            const classes = await res.json();
+
+            return classes;
+         
+        } catch (error) {
+            console.error(error);
+            return
+        }
+    }
+
+    //amenities template
+    const amenityTemplate = (amenity) => `<li class="amenity-item">
+                    <span class="amenity-icon">✓</span>
+                    <span class="amenity-text">${amenity}</span>
+                </li>`;
+
+    //loads amenities
+    const loadAmenities = (ticketClass) => {
+        if(!ticketClass.amenities) return "";
+        
+        let amenities = "";
+        ticketClass.amenities.forEach(amenity => { amenities += amenityTemplate(amenity)});
+        return amenities;
+    }
+    
+    //ticket class template
+    const ticketClassTemplate = (ticket, index) => {
+       return `<label class="ticket-card" for="ticket-${ticket.class}">
+                            <input 
+                                type="radio" 
+                                name="ticketClass" 
+                                id="ticket-${ticket.class}" 
+                                value="${ticket.class}"
+                                data-name="${ticket.name}"
+                                data-price="${ticket.price}"
+                                ${ index === 1 ? 'checked' : ''}
+                                required
+                            >
+                            <div class="ticket-content">
+                                <div class="ticket-header">
+                                    <h3 class="ticket-name">${ticket.name}</h3>
+                                    <div class="ticket-price">
+                                        <span class="price-symbol">¥</span>
+                                        <span class="price-amount">${Number(ticket.price).toLocaleString()}</span>
+                                    </div>
+                                </div>
+                                
+                                <p class="ticket-description">${ticket.description}</p>
+                                
+                                <ul class="amenities-list">
+                                    ${loadAmenities(ticket)}
+                                </ul>
+                            </div>
+                        </label>`;
+    }
+
+    //update ticket classes visually
+    const updateTicketClasses = async (day) => {
+        const selectedDay = day;
+        const updatedTickets = await getClasses(selectedDay);
+        
+        //Right now the collection that contains the ticket class
+        //do not have a day so the api will return an empty array
+        //until the collection is updated to support days
+        const allClassesAvailable = Array.isArray(updatedTickets) && updatedTickets.length === 0;
+       
+        const parent = document.querySelector(".ticket-options");
+        const renderedClasses = document.querySelectorAll(".ticket-card");
+
+        //cancell when all classes are available
+        if(allClassesAvailable) return        
+        
+        //re-render ticket classes
+        parent.innerHTML = ""; //clear parent
+        let HTML = "";
+
+        if(updatedTickets.length === 1){
+      		HTML += ticketClassTemplate(updatedTickets[0], 1); //This will select the only available element
+        }else{
+        	updatedTickets.forEach((ticketClass, i) => {
+        	   HTML += ticketClassTemplate(ticketClass, i);
+            })
+        } 
+
+        //update UI
+        parent.innerHTML = HTML;
+        updateTicketRadios();
+        updateSelectedRadio();
+        updateSummary();
+        return
+    } 
+
     // Update summary displays
     const selectedTicketName = document.getElementById('selectedTicketName');
     const passengerCountDisplay = document.getElementById('passengerCount');
@@ -392,6 +494,9 @@
             e.preventDefault();
             const label = e.currentTarget;
 
+            //update ticket classes visually
+            updateTicketClasses(label.querySelector("input").value);
+
             // Update visual and input selection
             selectedDayLabels.forEach((lbl) => {
                 lbl.classList.remove('selected');
@@ -415,41 +520,52 @@
         }
     });
 
-    ticketRadios.forEach((radio) => {
-        radio.addEventListener('change', (e) => {
-            e.preventDefault();
-            const selected = e.currentTarget;
+    const updateTicketRadios = () => {
+    	ticketRadios = document.querySelectorAll('input[name="ticketClass"]');
+    	createRadiosListenner();
+    }
 
-            // Update visual and input selection
-            ticketRadios.forEach((input) => {
-                input.checked = false;
-                input.removeAttribute('checked');
-            });
-
-            selected.checked = true;
-            selected.setAttribute('checked', true);
-
-            // Update summary
-            const ticketName = e.target.dataset.name;
-            ticketPrice = parseInt(e.target.dataset.price);
-            
-            selectedTicketName.textContent = ticketName;
-            updateSummary();
-        });
-    });
+    const createRadiosListenner = () => {
+    	ticketRadios.forEach((radio) => {
+    	        radio.addEventListener('change', (e) => {
+    	            e.preventDefault();
+    	            const selected = e.currentTarget;
+    	
+    	            // Update visual and input selection
+    	            ticketRadios.forEach((input) => {
+    	                input.checked = false;
+    	                input.removeAttribute('checked');
+    	            });
+    	
+    	            selected.checked = true;
+    	            selected.setAttribute('checked', true);
+    	
+    	            // Update summary
+    	            const ticketName = e.target.dataset.name;
+    	            ticketPrice = parseInt(e.target.dataset.price);
+    	            selectedTicketName.textContent = ticketName;
+    	            updateSummary();
+    	        });
+    	    });
+    }
 
     document.getElementById('autofill').addEventListener('click', (e) => {
         e.preventDefault();
         autoFillForm();
     });
 
-    // Initialize ticket based on default selection
-    const selectedRadio = document.querySelector('input[name="ticketClass"]:checked');
-    if (selectedRadio) {
-        const ticketName = selectedRadio.dataset.name;
-        selectedTicketName.textContent = ticketName;
-        ticketPrice = parseInt(selectedRadio.dataset.price);
+    const updateSelectedRadio = () => {
+    	const selectedRadio = document.querySelector('input[name="ticketClass"]:checked');
+    	if (selectedRadio) {
+    	   const ticketName = selectedRadio.dataset.name;
+    	   selectedTicketName.textContent = ticketName;
+    	   ticketPrice = parseInt(selectedRadio.dataset.price);
+    	}
     }
+
+    // Initialize ticket based on default selection
+	createRadiosListenner();
+    updateSelectedRadio();
     updateSummary();
 </script>
 
