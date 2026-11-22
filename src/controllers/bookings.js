@@ -5,6 +5,7 @@ import {
 } from '../models/bookings.js';
 
 import { getTripById } from '../models/trips.js';
+import { getAllTicketClasses } from "../models/ticket-classes.js";
 
 import { getDb } from '../db/connect.js';
 import { generateBookingCode } from '../includes/helpers.js';
@@ -82,12 +83,14 @@ const bookingPage = async (req, res, next) => {
             error.status = 404;
             return next(error);
         }
-        const ticketClasses = await db.collection('ticketClasses').find({}).toArray();
+        const ticketClasses = await getAllTicketClasses();
+
         if (ticketClasses.length === 0) {
             const error = new Error('No ticket classes found');
             error.status = 404;
             return next(error);
         }
+        
         const ticketOptions = ticketClasses.map((ticketClass) => ({
             class: ticketClass.class,
             name: ticketClass.name,
