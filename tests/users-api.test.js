@@ -191,6 +191,34 @@ describe('User API routes', () => {
         await adminAgent.get('/api/users').expect(200);
     });
 
+    test('invalidates all deleted user sessions without affecting other users', async () => {
+        const customer = await createAccount('customer');
+        const customerAgent = await login(customer);
+        const secondCustomerAgent = await login(customer);
+        const otherUser = await createAccount('other');
+        const otherAgent = await login(otherUser);
+        const admin = await createAccount('admin', 'admin');
+        const adminAgent = await login(admin);
+
+        await adminAgent
+            .delete(`/api/users/${customer._id}`)
+            .send({ password: 'WrongPassword123' })
+            .expect(403);
+        await customerAgent.get('/api/users').expect(200);
+        await secondCustomerAgent.get('/api/users').expect(200);
+
+        await adminAgent
+            .delete(`/api/users/${customer._id}`)
+            .send({ password })
+            .expect(204);
+
+        await customerAgent.get('/api/users').expect(401);
+        await secondCustomerAgent.get('/users-admin').expect(302).expect('Location', '/login');
+        await adminAgent.get('/api/users').expect(200);
+        await otherAgent.get('/api/users').expect(200);
+        await expect(findUserById(customer._id.toString())).resolves.toBeNull();
+    });
+
     test('returns 400 for invalid IDs and invalid update data', async () => {
         const admin = await createAccount('admin', 'admin');
         const agent = await login(admin);
@@ -261,12 +289,14 @@ describe('User API routes', () => {
     test('returns 204 and destroys the session after self-deletion', async () => {
         const customer = await createAccount('customer');
         const agent = await login(customer);
+        const otherSession = await login(customer);
 
         await agent
             .delete(`/api/users/${customer._id}`)
             .send({ password })
             .expect(204);
         await agent.get('/api/users').expect(401);
+        await otherSession.get('/api/users').expect(401);
         await expect(findUserById(customer._id.toString())).resolves.toBeNull();
     });
 });

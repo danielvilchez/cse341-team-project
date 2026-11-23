@@ -236,6 +236,13 @@ const deleteUserHandler = async (req, res) => {
             return res.status(403).json({ message: 'Current password is incorrect.' });
         }
 
+        const user = await findUserById(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        await invalidateUserSessions(userId);
+
         const deletedUser = await deleteUserById(userId);
         if (!deletedUser) {
             return res.status(404).json({ message: 'User not found' });

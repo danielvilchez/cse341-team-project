@@ -616,7 +616,7 @@ router.put("/api/users/:userId", requireApiLogin, requireUserOwnerOrAdmin, updat
  * /api/users/{userId}:
  *   delete:
  *     summary: Delete a user
- *     description: Customers may delete only their own account; admins may delete any account. The authenticated user's current password must be supplied to confirm deletion. Deleting your own account ends the session.
+ *     description: Customers may delete only their own account; admins may delete any account. The authenticated user's current password must be supplied to confirm deletion. The deleted user's active sessions are invalidated.
  *     tags:
  *       - Users
  *     security:
