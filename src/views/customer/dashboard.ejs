@@ -1,0 +1,31 @@
+<%- include('../partials/header') %>
+
+    <main>
+        <h1>Customer Dashboard</h1>
+
+        <p>Welcome, <%= user.name %>!</p>
+        <p>Here you can view and manage your bookings.</p>
+
+        <section>
+            <h2>Quick Links</h2>
+            <ul>
+                <li>
+                    <a href="/bookings-admin">Booking Admin</a>
+                </li>
+                <li>
+                    <a href="/users-admin">User Admin</a>
+                </li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>My Bookings</h2>
+            <div id="bookings-container">
+                <p id="bookings-message">Loading your bookings...</p>
+            </div>
+        </section>
+    </main>
+
+    <script src="/js/customer-dashboard.js" defer></script>
+
+    <%- include('../partials/footer') %>

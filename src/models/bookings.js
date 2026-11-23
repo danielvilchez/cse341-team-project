@@ -13,8 +13,19 @@ const getBookingById = (bookingId) => {
     return bookingsSchema.findOne({ id: bookingId }).exec();
 };
 
+const getBookingsByPassengerEmail = (email) => {
+    const escapedEmail = email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    return bookingsSchema.find({
+        'passengers.email': {
+            $regex: new RegExp(`^${escapedEmail}$`, 'i')
+        }
+    }).exec();
+};
+
 export {
     createBooking,
     getAllBookings,
-    getBookingById
+    getBookingById,
+    getBookingsByPassengerEmail
 };

@@ -8,8 +8,11 @@ import {
 import {
     createBookingHandler,
     getAllBookingsHandler,
-    getBookingByIdHandler
+    getBookingByIdHandler,
+    getMyBookingsHandler
 } from "../controllers/bookings.js";
+
+import { requireApiRole } from "../middleware/auth.js";
 
 import { trainsApi } from "./trains.js";
 import { getTripsApi, getTripByIdApi } from "../controllers/trips.js";
@@ -257,6 +260,13 @@ const router = Router();
  *               $ref: '#/components/schemas/Error'
  */
 router.get('/api/bookings', getAllBookingsHandler);
+
+// Customer bookings API
+router.get(
+    '/api/my-bookings',
+    requireApiRole('customer'),
+    getMyBookingsHandler
+);
 
 /**
  * @swagger

@@ -12,19 +12,19 @@ const renderRegisterPage = (req, res) => {
 const registerUser = async (req, res, next) => {
   try {
     const { name, username, email, password } = req.body;
-    
+
     if (!name || !username || !email || !password) {
-      return res.status(400).render('auth/register', { 
-        title: 'Register', 
-        error: 'All fields are required.' 
+      return res.status(400).render('auth/register', {
+        title: 'Register',
+        error: 'All fields are required.'
       });
     }
 
     const existingUser = await findUserByEmail(email);
     if (existingUser) {
-      return res.status(400).render('auth/register', { 
-        title: 'Register', 
-        error: 'Email is already registered.' 
+      return res.status(400).render('auth/register', {
+        title: 'Register',
+        error: 'Email is already registered.'
       });
     }
 
