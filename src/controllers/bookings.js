@@ -3,7 +3,7 @@ import { findUserById } from '../models/users.js';
 import {
     createBooking,
     getBookingById,
-    getAllBookings,
+    getPaginatedBookings,
     getBookingsByPassengerEmail
 } from '../models/bookings.js';
 
@@ -37,15 +37,46 @@ const createBookingHandler = async (req, res) => {
     }
 };
 
+
 const getAllBookingsHandler = async (req, res) => {
     try {
-        const bookings = await getAllBookings();
-        return res.status(200).json({ bookings });
+        const pageParam = req.query.page ?? '1';
+        const limitParam = req.query.limit ?? '10';
+
+        const isValidPositiveInteger = (value) =>
+            typeof value === 'string' && /^[1-9]\d*$/.test(value);
+
+        if (
+            !isValidPositiveInteger(pageParam) ||
+            !isValidPositiveInteger(limitParam)
+        ) {
+            return res.status(400).json({
+                error: 'Page and limit must be positive integers'
+            });
+        }
+
+        const page = Number(pageParam);
+        const limit = Number(limitParam);
+
+        if (
+            !Number.isSafeInteger(page) ||
+            !Number.isSafeInteger(limit) ||
+            limit > 100
+        ) {
+            return res.status(400).json({
+                error: 'Page must be a safe integer and limit must be between 1 and 100'
+            });
+        }
+
+        const result = await getPaginatedBookings({ page, limit });
+
+        return res.status(200).json(result);
     } catch (error) {
         console.error('Error fetching bookings:', error);
         return res.status(500).json({ error: 'Failed to fetch bookings' });
     }
 };
+
 
 const getBookingByIdHandler = async (req, res) => {
     const { bookingId } = req.params;

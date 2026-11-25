@@ -106,9 +106,30 @@ const router = Router();
  * @swagger
  * /api/bookings:
  *   get:
- *     summary: List all bookings
+ *     summary: List bookings with pagination
+ *     description: Returns bookings ordered by creation date, newest first.
  *     tags:
  *       - Bookings
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         required: false
+ *         description: Page number to retrieve
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *         example: 1
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         description: Number of bookings per page (maximum 100)
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 10
+ *         example: 10
  *     responses:
  *       200:
  *         description: Bookings retrieved successfully
@@ -117,18 +138,57 @@ const router = Router();
  *             schema:
  *               type: object
  *               required:
- *                 - bookings
+ *                 - data
+ *                 - meta
  *               properties:
- *                 bookings:
+ *                 data:
  *                   type: array
  *                   items:
  *                     $ref: '#/components/schemas/Booking'
+ *                 meta:
+ *                   type: object
+ *                   required:
+ *                     - page
+ *                     - limit
+ *                     - total
+ *                     - totalPages
+ *                     - sort
+ *                     - order
+ *                   properties:
+ *                     page:
+ *                       type: integer
+ *                       example: 1
+ *                     limit:
+ *                       type: integer
+ *                       example: 10
+ *                     total:
+ *                       type: integer
+ *                       example: 25
+ *                     totalPages:
+ *                       type: integer
+ *                       example: 3
+ *                     sort:
+ *                       type: string
+ *                       example: createdAt
+ *                     order:
+ *                       type: string
+ *                       example: desc
+ *       400:
+ *         description: Invalid pagination parameters
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *             example:
+ *               error: Page and limit must be positive integers
  *       500:
  *         description: Failed to fetch bookings
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Error'
+ *             example:
+ *               error: Failed to fetch bookings
  */
 router.get('/api/bookings', getAllBookingsHandler);
 
