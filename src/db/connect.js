@@ -1,12 +1,14 @@
 import { MongoClient } from 'mongodb';
 import mongoose from 'mongoose';
 
+const DEFAULT_DATABASE_NAME = 'kizuna-rail';
+
 let database;
 let client;
 
 const getConnectionOptions = (options) => {
   const connectionString = options.connectionString || process.env.MONGODB_URI;
-  const databaseName = options.databaseName || process.env.MONGODB_DB_NAME || 'practice';
+  const databaseName = options.databaseName || process.env.MONGODB_DB_NAME || DEFAULT_DATABASE_NAME;
 
   if (!connectionString) {
     throw new Error('MONGODB_URI is required.');
@@ -60,4 +62,4 @@ const closeDb = async () => {
   }
 };
 
-export { closeDb, connectToDb, connectToMongoose, getDb };
+export { closeDb, connectToDb, connectToMongoose, DEFAULT_DATABASE_NAME, getDb };

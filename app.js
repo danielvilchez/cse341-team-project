@@ -9,11 +9,14 @@ import routes from './src/routes/router.js';
 import swaggerUi from 'swagger-ui-express';
 import swaggerDocument from './swagger.json' with { type: 'json' };
 import MongoStore from 'connect-mongo';
+import { DEFAULT_DATABASE_NAME } from './src/db/connect.js';
+import { SESSION_COLLECTION_NAME } from './src/db/sessions.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = Path.dirname(__filename);
 
 const app = express();
+app.set('trust proxy', 1);
 
 // Swagger Docs
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
@@ -46,8 +49,8 @@ app.use(session({
     rolling: true,
     store: MongoStore.create({
         mongoUrl: process.env.MONGODB_URI,
-        dbName: process.env.MONGODB_DB_NAME || 'kizuna-rail',
-        collectionName: 'sessions',
+        dbName: process.env.MONGODB_DB_NAME || DEFAULT_DATABASE_NAME,
+        collectionName: SESSION_COLLECTION_NAME,
         ttl: 60 * 60 * 24 
     }),
     cookie: { 
@@ -68,6 +71,17 @@ app.use((req, res, next) => {
     const err = new Error('Page Not Found');
     err.status = 404;
     next(err);
+});
+
+app.use((err, req, res, next) => {
+    const isUserMutation = ['PUT', 'DELETE'].includes(req.method)
+        && /^\/api\/users\/[^/]+$/.test(req.path);
+
+    if (isUserMutation && err.type === 'entity.parse.failed') {
+        return res.status(400).json({ message: 'Invalid user data.' });
+    }
+
+    return next(err);
 });
 
 app.use((err, req, res, next) => {

@@ -15,8 +15,8 @@
 		"dev": "nodemon server.js",
 		"reset": "node restore.js 3000 3001",
 		"start": "node --env-file=.env server.js",
-		"test": "vitest run",
-		"test:watch": "vitest",
+		"test": "node --env-file=.env ./node_modules/vitest/vitest.mjs run",
+		"test:watch": "node --env-file=.env ./node_modules/vitest/vitest.mjs",
 		"lint": "eslint .",
 		"lint:fix": "eslint . --fix",
 		"swagger": "node swagger.js"

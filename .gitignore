@@ -1,4 +1,4 @@
 node_modules/
 src/models/db-in-file.json
 .env
-specs/feature-set-2-spec.md
+*spec*.md

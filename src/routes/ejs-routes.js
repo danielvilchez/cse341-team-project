@@ -10,7 +10,7 @@ import {
   loginUser,
   logoutUser
 } from "../controllers/auth.js";
-import { requirePageRole } from "../middleware/auth.js";
+import { requirePageLogin, requirePageRole } from "../middleware/auth.js";
 
 const router = Router();
 
@@ -35,6 +35,15 @@ router.post("/register", registerUser);
 router.get("/login", renderLoginPage);
 router.post("/login", loginUser);
 router.post("/logout", logoutUser);
+
+// Protected user administration page
+router.get("/users-admin", requirePageLogin, (req, res) => {
+  res.render("users-admin", {
+    title: "User Administration",
+    currentUserId: req.user.id,
+    isAdmin: req.user.role === "admin"
+  });
+});
 
 // Admin Dashboard (Protected)
 router.get("/admin/dashboard", requirePageRole('admin'), (req, res) => {
