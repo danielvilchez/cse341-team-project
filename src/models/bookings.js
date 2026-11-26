@@ -9,17 +9,44 @@ const getAllBookings = () => {
     return bookingsSchema.find().exec();
 };
 
-const getPaginatedBookings = async ({ page = 1, limit = 10 }) => {
+
+const getPaginatedBookings = async ({
+    page = 1,
+    limit = 10,
+    ticketClass,
+    startDate,
+    endDate
+}) => {
     const skip = (page - 1) * limit;
+
+    const filter = {};
+
+    if (ticketClass) {
+        filter.ticketClass = ticketClass;
+    }
+
+    if (startDate || endDate) {
+        filter.createdAt = {};
+
+        if (startDate) {
+            filter.createdAt.$gte = new Date(startDate);
+        }
+
+        if (endDate) {
+            const end = new Date(endDate);
+            end.setUTCDate(end.getUTCDate() + 1);
+            filter.createdAt.$lt = end;
+        }
+    }
 
     const [bookings, total] = await Promise.all([
         bookingsSchema
-            .find()
+            .find(filter)
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(limit)
             .exec(),
-        bookingsSchema.countDocuments()
+        bookingsSchema.countDocuments(filter)
     ]);
 
     return {
@@ -30,7 +57,12 @@ const getPaginatedBookings = async ({ page = 1, limit = 10 }) => {
             total,
             totalPages: Math.ceil(total / limit),
             sort: 'createdAt',
-            order: 'desc'
+            order: 'desc',
+            filters: {
+                ticketClass: ticketClass || null,
+                startDate: startDate || null,
+                endDate: endDate || null
+            }
         }
     };
 };

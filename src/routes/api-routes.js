@@ -106,8 +106,8 @@ const router = Router();
  * @swagger
  * /api/bookings:
  *   get:
- *     summary: List bookings with pagination
- *     description: Returns bookings ordered by creation date, newest first.
+ *     summary: List bookings with pagination and filters
+ *     description: Returns bookings ordered by creation date, newest first. Supports filtering by ticket class and booking creation date range.
  *     tags:
  *       - Bookings
  *     parameters:
@@ -119,7 +119,6 @@ const router = Router();
  *           type: integer
  *           minimum: 1
  *           default: 1
- *         example: 1
  *       - in: query
  *         name: limit
  *         required: false
@@ -129,10 +128,33 @@ const router = Router();
  *           minimum: 1
  *           maximum: 100
  *           default: 10
- *         example: 10
+ *       - in: query
+ *         name: ticketClass
+ *         required: false
+ *         description: Filter bookings by ticket class
+ *         schema:
+ *           type: string
+ *           enum:
+ *             - standard
+ *             - premium
+ *             - first
+ *       - in: query
+ *         name: startDate
+ *         required: false
+ *         description: Include bookings created on or after this date (YYYY-MM-DD)
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: endDate
+ *         required: false
+ *         description: Include bookings created on or before this date (YYYY-MM-DD)
+ *         schema:
+ *           type: string
+ *           format: date
  *     responses:
  *       200:
- *         description: Bookings retrieved successfully
+ *         description: Filtered bookings retrieved successfully
  *         content:
  *           application/json:
  *             schema:
@@ -147,48 +169,45 @@ const router = Router();
  *                     $ref: '#/components/schemas/Booking'
  *                 meta:
  *                   type: object
- *                   required:
- *                     - page
- *                     - limit
- *                     - total
- *                     - totalPages
- *                     - sort
- *                     - order
  *                   properties:
  *                     page:
  *                       type: integer
- *                       example: 1
  *                     limit:
  *                       type: integer
- *                       example: 10
  *                     total:
  *                       type: integer
- *                       example: 25
  *                     totalPages:
  *                       type: integer
- *                       example: 3
  *                     sort:
  *                       type: string
  *                       example: createdAt
  *                     order:
  *                       type: string
  *                       example: desc
+ *                     filters:
+ *                       type: object
+ *                       properties:
+ *                         ticketClass:
+ *                           type: string
+ *                           nullable: true
+ *                         startDate:
+ *                           type: string
+ *                           nullable: true
+ *                         endDate:
+ *                           type: string
+ *                           nullable: true
  *       400:
- *         description: Invalid pagination parameters
+ *         description: Invalid pagination or filter parameters
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Error'
- *             example:
- *               error: Page and limit must be positive integers
  *       500:
  *         description: Failed to fetch bookings
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Error'
- *             example:
- *               error: Failed to fetch bookings
  */
 router.get('/api/bookings', getAllBookingsHandler);
 

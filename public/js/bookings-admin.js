@@ -1,4 +1,3 @@
-
 const hookBookingsAdmin = async () => {
     const listEl = document.getElementById('bookings-list');
     const templateEl = document.getElementById('booking-card-template');
@@ -18,11 +17,19 @@ const hookBookingsAdmin = async () => {
     const nextButtonEl = document.getElementById('bookings-next');
     const pageInfoEl = document.getElementById('bookings-page-info');
 
+    const ticketClassFilterEl = document.getElementById('booking-ticket-class');
+    const startDateFilterEl = document.getElementById('booking-start-date');
+    const endDateFilterEl = document.getElementById('booking-end-date');
+    const applyFiltersButtonEl = document.getElementById('bookings-apply-filters');
+    const clearFiltersButtonEl = document.getElementById('bookings-clear-filters');
+
     if (
         !listEl || !templateEl || !cardsViewEl || !tableListEl ||
         !tableWrapEl || !viewControlsEl || !cardsButtonEl ||
         !tableButtonEl || !loadingEl || !emptyEl || !errorEl ||
-        !paginationEl || !previousButtonEl || !nextButtonEl || !pageInfoEl
+        !paginationEl || !previousButtonEl || !nextButtonEl || !pageInfoEl ||
+        !ticketClassFilterEl || !startDateFilterEl || !endDateFilterEl ||
+        !applyFiltersButtonEl || !clearFiltersButtonEl
     ) {
         return;
     }
@@ -30,6 +37,12 @@ const hookBookingsAdmin = async () => {
     let activeView = 'cards';
     let currentPage = 1;
     const pageLimit = 10;
+
+    let activeFilters = {
+        ticketClass: '',
+        startDate: '',
+        endDate: ''
+    };
 
     const setView = (view) => {
         activeView = view;
@@ -128,9 +141,24 @@ const hookBookingsAdmin = async () => {
         setState('loading');
 
         try {
-            const response = await fetch(
-                `/api/bookings?page=${page}&limit=${pageLimit}`
-            );
+            const params = new URLSearchParams({
+                page: String(page),
+                limit: String(pageLimit)
+            });
+
+            if (activeFilters.ticketClass) {
+                params.set('ticketClass', activeFilters.ticketClass);
+            }
+
+            if (activeFilters.startDate) {
+                params.set('startDate', activeFilters.startDate);
+            }
+
+            if (activeFilters.endDate) {
+                params.set('endDate', activeFilters.endDate);
+            }
+
+            const response = await fetch(`/api/bookings?${params.toString()}`);
 
             if (!response.ok) {
                 throw new Error(`Failed to load bookings (${response.status})`);
@@ -155,6 +183,39 @@ const hookBookingsAdmin = async () => {
             setState('error');
         }
     };
+
+    applyFiltersButtonEl.addEventListener('click', async () => {
+        if (
+            startDateFilterEl.value &&
+            endDateFilterEl.value &&
+            startDateFilterEl.value > endDateFilterEl.value
+        ) {
+            alert('Start date cannot be after end date.');
+            return;
+        }
+
+        activeFilters = {
+            ticketClass: ticketClassFilterEl.value,
+            startDate: startDateFilterEl.value,
+            endDate: endDateFilterEl.value
+        };
+
+        await loadBookings(1);
+    });
+
+    clearFiltersButtonEl.addEventListener('click', async () => {
+        ticketClassFilterEl.value = '';
+        startDateFilterEl.value = '';
+        endDateFilterEl.value = '';
+
+        activeFilters = {
+            ticketClass: '',
+            startDate: '',
+            endDate: ''
+        };
+
+        await loadBookings(1);
+    });
 
     if (retryEl) {
         retryEl.addEventListener('click', async () => {

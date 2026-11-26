@@ -40,8 +40,13 @@ const createBookingHandler = async (req, res) => {
 
 const getAllBookingsHandler = async (req, res) => {
     try {
-        const pageParam = req.query.page ?? '1';
-        const limitParam = req.query.limit ?? '10';
+        const {
+            page: pageParam = '1',
+            limit: limitParam = '10',
+            ticketClass,
+            startDate,
+            endDate
+        } = req.query;
 
         const isValidPositiveInteger = (value) =>
             typeof value === 'string' && /^[1-9]\d*$/.test(value);
@@ -68,7 +73,50 @@ const getAllBookingsHandler = async (req, res) => {
             });
         }
 
-        const result = await getPaginatedBookings({ page, limit });
+        const validTicketClasses = ['standard', 'premium', 'first'];
+
+        if (
+            ticketClass !== undefined &&
+            (typeof ticketClass !== 'string' ||
+                !validTicketClasses.includes(ticketClass))
+        ) {
+            return res.status(400).json({
+                error: 'Ticket class must be standard, premium, or first'
+            });
+        }
+
+        const isValidDate = (value) => {
+            if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+                return false;
+            }
+
+            const date = new Date(`${value}T00:00:00.000Z`);
+            return !Number.isNaN(date.getTime()) &&
+                date.toISOString().startsWith(value);
+        };
+
+        if (
+            (startDate !== undefined && !isValidDate(startDate)) ||
+            (endDate !== undefined && !isValidDate(endDate))
+        ) {
+            return res.status(400).json({
+                error: 'Start date and end date must use the YYYY-MM-DD format and be valid dates'
+            });
+        }
+
+        if (startDate && endDate && startDate > endDate) {
+            return res.status(400).json({
+                error: 'Start date cannot be after end date'
+            });
+        }
+
+        const result = await getPaginatedBookings({
+            page,
+            limit,
+            ticketClass,
+            startDate,
+            endDate
+        });
 
         return res.status(200).json(result);
     } catch (error) {
@@ -76,7 +124,6 @@ const getAllBookingsHandler = async (req, res) => {
         return res.status(500).json({ error: 'Failed to fetch bookings' });
     }
 };
-
 
 const getBookingByIdHandler = async (req, res) => {
     const { bookingId } = req.params;

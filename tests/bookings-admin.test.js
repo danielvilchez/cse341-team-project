@@ -15,6 +15,7 @@ class MockElement {
     this.hidden = false;
     this.disabled = false;
     this.textContent = '';
+    this.value = '';
     this.children = [];
     this.listeners = {};
   }
@@ -55,7 +56,12 @@ const runBookingsScript = async (fetch) => {
     'bookings-pagination',
     'bookings-previous',
     'bookings-next',
-    'bookings-page-info'
+    'bookings-page-info',
+    'booking-ticket-class',
+    'booking-start-date',
+    'booking-end-date',
+    'bookings-apply-filters',
+    'bookings-clear-filters'
   ];
 
   const elements = Object.fromEntries(
@@ -107,12 +113,14 @@ const runBookingsScript = async (fetch) => {
     }
   };
 
-  runInNewContext(clientScript, {
+    runInNewContext(clientScript, {
     document,
     fetch,
     console,
     Date,
-    Number
+    Number,
+    URLSearchParams,
+    alert: () => {}
   });
 
   await documentEvents.DOMContentLoaded();
@@ -138,7 +146,12 @@ const createPayload = (data, page = 1, totalPages = 1, total = data.length) => (
     total,
     totalPages,
     sort: 'createdAt',
-    order: 'desc'
+    order: 'desc',
+    filters: {
+      ticketClass: null,
+      startDate: null,
+      endDate: null
+    }
   }
 });
 
@@ -158,6 +171,9 @@ describe('Bookings admin page', () => {
     expect(response.text).toContain('src="/js/bookings-admin.js"');
     expect(response.text).toContain('id="bookings-loading"');
     expect(response.text).toContain('id="bookings-pagination"');
+    expect(response.text).toContain('id="booking-ticket-class"');
+    expect(response.text).toContain('id="booking-start-date"');
+    expect(response.text).toContain('id="booking-end-date"');
     expect(response.text).not.toContain('JR-ADMIN-TEST');
   });
 
@@ -264,5 +280,75 @@ describe('Bookings admin page', () => {
 
     expect(requestedUrls[2]).toBe('/api/bookings?page=1&limit=10');
     expect(elements['bookings-page-info'].textContent).toBe('Page 1 of 2');
+  });
+
+  test('applies ticket class and date filters and resets to page one', async () => {
+    const requestedUrls = [];
+
+    const elements = await runBookingsScript(async (url) => {
+      requestedUrls.push(url);
+
+      return {
+        ok: true,
+        json: async () => createPayload([createBooking()], 1, 1, 1)
+      };
+    });
+
+    elements['booking-ticket-class'].value = 'premium';
+    elements['booking-start-date'].value = '2026-01-01';
+    elements['booking-end-date'].value = '2026-01-31';
+
+    await elements['bookings-apply-filters'].listeners.click();
+
+    expect(requestedUrls[1]).toContain('page=1');
+    expect(requestedUrls[1]).toContain('limit=10');
+    expect(requestedUrls[1]).toContain('ticketClass=premium');
+    expect(requestedUrls[1]).toContain('startDate=2026-01-01');
+    expect(requestedUrls[1]).toContain('endDate=2026-01-31');
+  });
+
+  test('clears filters and reloads bookings without filter parameters', async () => {
+    const requestedUrls = [];
+
+    const elements = await runBookingsScript(async (url) => {
+      requestedUrls.push(url);
+
+      return {
+        ok: true,
+        json: async () => createPayload([createBooking()], 1, 1, 1)
+      };
+    });
+
+    elements['booking-ticket-class'].value = 'premium';
+    elements['booking-start-date'].value = '2026-01-01';
+    elements['booking-end-date'].value = '2026-01-31';
+
+    await elements['bookings-apply-filters'].listeners.click();
+    await elements['bookings-clear-filters'].listeners.click();
+
+    expect(elements['booking-ticket-class'].value).toBe('');
+    expect(elements['booking-start-date'].value).toBe('');
+    expect(elements['booking-end-date'].value).toBe('');
+    expect(requestedUrls[2]).toBe('/api/bookings?page=1&limit=10');
+  });
+
+  test('does not apply a date range when the start date is after the end date', async () => {
+    const requestedUrls = [];
+
+    const elements = await runBookingsScript(async (url) => {
+      requestedUrls.push(url);
+
+      return {
+        ok: true,
+        json: async () => createPayload([createBooking()])
+      };
+    });
+
+    elements['booking-start-date'].value = '2026-02-01';
+    elements['booking-end-date'].value = '2026-01-01';
+
+    await elements['bookings-apply-filters'].listeners.click();
+
+    expect(requestedUrls).toHaveLength(1);
   });
 });
