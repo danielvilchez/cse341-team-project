@@ -17,6 +17,37 @@
             <button id="bookings-retry" type="button">Retry</button>
         </div>
 
+
+        <div class="bookings-filters" id="bookings-filters">
+            <div>
+                <label for="booking-ticket-class">Ticket class</label>
+                <select id="booking-ticket-class">
+                    <option value="">All classes</option>
+                    <option value="standard">Standard</option>
+                    <option value="premium">Premium</option>
+                    <option value="first">First</option>
+                </select>
+            </div>
+
+            <div>
+                <label for="booking-start-date">Start date</label>
+                <input type="date" id="booking-start-date">
+            </div>
+
+            <div>
+                <label for="booking-end-date">End date</label>
+                <input type="date" id="booking-end-date">
+            </div>
+
+            <button id="bookings-apply-filters" type="button">
+                Apply filters
+            </button>
+
+            <button id="bookings-clear-filters" type="button">
+                Clear filters
+            </button>
+        </div>
+
         <div class="bookings-view-controls" id="bookings-view-controls" role="group" aria-label="Booking display"
             hidden>
             <button id="bookings-cards-button" type="button" aria-pressed="true">Cards</button>
