@@ -123,7 +123,7 @@ const bookingPage = async (req, res, next) => {
         return res.status(200).render('trips/book', {
             title: 'Book Trip',
             schedule,
-            ticketOptions
+            ticketOptions,
         });
     } catch (error) {
         return next(error);

@@ -183,6 +183,8 @@
             <a href="/trips/<%= schedule.tripId %>" class="btn btn-secondary">Cancel</a>
             <button type="submit" class="btn btn-primary">Confirm Booking</button>
         </div>
+       
+        <span id="tripId" class="display:none" data-id="<%= schedule.tripId %>"></span>
     </form>
 </article>
 
@@ -196,20 +198,34 @@
     const addPassengerBtn = document.getElementById('addPassenger');
     let ticketRadios = document.querySelectorAll('input[name="ticketClass"]');
     
+    //gets distance
+    const getTripDistance = async () => {
+    	const tripId = document.getElementById("tripId").dataset.id;
+    	const api = `/api/trips/${tripId}`;
+    	try{
+    		const res = await fetch(api);
+    		if(!res.ok){
+    			throw new Error(`Unable to get distance due to error code (${res.status})`);
+    		}
+    		const {distance} = await res.json();
+    		return distance;
+    	}catch(error){
+    		console.error(error);
+    		return;
+    	}
+    };
+
     const getClasses = async (day) => {
-        let res = null;
         let api = `/api/ticket-classes${day ? "?day="+day : ""}`;
 
         try {
-            res = await fetch(api);
+            const res = await fetch(api);
             if(!res.ok){
                 throw new Error(`Unable to get classes due to error code (${res.status})`);
             }
 
             const classes = await res.json();
-
             return classes;
-         
         } catch (error) {
             console.error(error);
             return
@@ -232,7 +248,8 @@
     }
     
     //ticket class template
-    const ticketClassTemplate = (ticket, index) => {
+    const ticketClassTemplate = (ticket, index, distance) => {
+       const price = Number(distance) * Number(ticket.pricePerKm)
        return `<label class="ticket-card" for="ticket-${ticket.class}">
                             <input 
                                 type="radio" 
@@ -240,7 +257,7 @@
                                 id="ticket-${ticket.class}" 
                                 value="${ticket.class}"
                                 data-name="${ticket.name}"
-                                data-price="${ticket.price}"
+                                data-price="${price}"
                                 ${ index === 1 ? 'checked' : ''}
                                 required
                             >
@@ -249,7 +266,7 @@
                                     <h3 class="ticket-name">${ticket.name}</h3>
                                     <div class="ticket-price">
                                         <span class="price-symbol">¥</span>
-                                        <span class="price-amount">${Number(ticket.price).toLocaleString()}</span>
+                                        <span class="price-amount">${price}</span>
                                     </div>
                                 </div>
                                 
@@ -265,7 +282,8 @@
     //update ticket classes visually
     const updateTicketClasses = async (day) => {
         const selectedDay = day;
-        const updatedTickets = await getClasses(selectedDay);
+        let updatedTickets = await getClasses(selectedDay);
+        const distance = await getTripDistance();
         
         //Right now the collection that contains the ticket class
         //do not have a day so the api will return an empty array
@@ -279,16 +297,17 @@
         if(allClassesAvailable) return        
         
         //re-render ticket classes
-        parent.innerHTML = ""; //clear parent
         let HTML = "";
-
+        
         if(updatedTickets.length === 1){
-      		HTML += ticketClassTemplate(updatedTickets[0], 1); //This will select the only available element
+      		HTML += ticketClassTemplate(updatedTickets[0], 1, distance); //This will select the only available element
         }else{
         	updatedTickets.forEach((ticketClass, i) => {
-        	   HTML += ticketClassTemplate(ticketClass, i);
+        	   HTML += ticketClassTemplate(ticketClass, i, distance);
             })
         } 
+
+        console.log(HTML);
 
         //update UI
         parent.innerHTML = HTML;
