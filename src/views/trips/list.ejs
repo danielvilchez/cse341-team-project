@@ -21,6 +21,12 @@
 
 <div class="routes-grid" id="trips-container"></div>
 
+<div id="pagination-controls" style="text-align: center; margin-top: 2rem;">
+    <button id="prev-btn" style="padding: 0.5rem 1rem; margin-right: 1rem;">Previous</button>
+    <span id="page-info" style="margin: 0 1rem; font-weight: bold;"></span>
+    <button id="next-btn" style="padding: 0.5rem 1rem; margin-left: 1rem;">Next</button>
+</div>
+
 <template id="trip-template">
     <div class="route-card">
         <div class="route-header">
@@ -65,38 +71,43 @@
     document.addEventListener('DOMContentLoaded', async () => {
         const container = document.getElementById('trips-container');
         const template = document.getElementById('trip-template');
-        const regionFilter = document.getElementById('region-filter');
-        const seasonFilter = document.getElementById('season-filter');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const pageInfo = document.getElementById('page-info');
 
-        let allTrips = []; 
+        let currentPage = 1;
+        const limit = 10; // We can adjust this if we needed to
 
-        try {
-            // Fetch the data
-            const response = await fetch('/api/trips');
-            if (!response.ok) throw new Error('Failed to fetch trips');
-            allTrips = await response.json();
+        async function loadTrips(page) {
+            try {
+                container.innerHTML = '<p>Loading trips...</p>';
+                
+                // Fetch data from the API with pagination
+                const response = await fetch(`/api/trips?page=${page}&limit=${limit}`);
+                if (!response.ok) throw new Error('Failed to fetch trips');
+                
+                const result = await response.json();
+                
+                // Render the trips
+                renderTrips(result.data);
+                
+                // Update pagination controls
+                currentPage = result.pagination.page;
+                pageInfo.textContent = `Page ${currentPage} of ${result.pagination.totalPages || 1}`;
+                prevBtn.disabled = !result.pagination.hasPreviousPage;
+                nextBtn.disabled = !result.pagination.hasNextPage;
 
-            // Check the URL for query params to pre-select the dropdowns
-            const urlParams = new URLSearchParams(window.location.search);
-            const urlRegion = urlParams.get('region');
-            const urlSeason = urlParams.get('season');
-
-            if (urlRegion) regionFilter.value = urlRegion;
-            if (urlSeason) seasonFilter.value = urlSeason;
-
-            // Initial render (with filters applied if they exist in the URL)
-            filterTrips();
-
-        } catch (error) {
-            console.error(error);
-            container.innerHTML = '<p>Error loading trips. Please try again later.</p>';
+            } catch (error) {
+                console.error(error);
+                container.innerHTML = '<p>Error loading trips. Please try again later.</p>';
+            }
         }
 
         function renderTrips(tripsToRender) {
             container.innerHTML = ''; 
 
             if (tripsToRender.length === 0) {
-                container.innerHTML = '<p>No trips match your filters.</p>';
+                container.innerHTML = '<p>No trips found.</p>';
                 return;
             }
 
@@ -133,32 +144,17 @@
             });
         }
 
-        function filterTrips() {
-            const selectedRegion = regionFilter.value;
-            const selectedSeason = seasonFilter.value;
+        // Add click listeners for pagination
+        prevBtn.addEventListener('click', () => {
+            if (currentPage > 1) loadTrips(currentPage - 1);
+        });
 
-            // If the URL changes or the user selects a dropdown, update the URL so it can be shared
-            const newUrl = new URL(window.location);
-            if (selectedRegion !== 'all') newUrl.searchParams.set('region', selectedRegion);
-            else newUrl.searchParams.delete('region');
-            
-            if (selectedSeason !== 'all') newUrl.searchParams.set('season', selectedSeason);
-            else newUrl.searchParams.delete('season');
-            
-            window.history.pushState({}, '', newUrl);
+        nextBtn.addEventListener('click', () => {
+            loadTrips(currentPage + 1);
+        });
 
-            const filtered = allTrips.filter(trip => {
-                const matchesRegion = selectedRegion === 'all' || trip.region === selectedRegion;
-                const matchesSeason = selectedSeason === 'all' || trip.bestSeason === selectedSeason;
-                return matchesRegion && matchesSeason;
-            });
-
-            renderTrips(filtered);
-        }
-
-        // Event listeners for the dropdowns
-        regionFilter.addEventListener('change', filterTrips);
-        seasonFilter.addEventListener('change', filterTrips);
+        // Initial load
+        loadTrips(1);
     });
 </script>
 
