@@ -1,25 +1,44 @@
 <%- include('../partials/header') %>
 <h1><%- title %></h1>
 
-<div id="filters">
-    Search by Region:
-    <select id="region-filter">
-        <option value="all">All Regions</option>
-        <% if (typeof regions !== 'undefined' && regions.length > 0) { regions.forEach((region) => { %>
-            <option value="<%= region %>"><%= region.charAt(0).toUpperCase() + region.slice(1) %></option>
-        <% }); } %>
-    </select>
+<div id="filters" style="margin-bottom: 2rem; display: flex; gap: 1rem; align-items: center;">
+    <div>
+        <label for="search-input">Search:</label>
+        <input type="text" id="search-input" placeholder="Search trips..." style="padding: 0.25rem;">
+    </div>
 
-    Search by Season:
-    <select id="season-filter">
-        <option value="all">Any Season</option>
-        <% if (typeof seasons !== 'undefined' && seasons.length > 0) { seasons.forEach((season) => { %>
-            <option value="<%= season %>"><%= season.charAt(0).toUpperCase() + season.slice(1) %></option>
-        <% }); } %>
-    </select>
+    <div>
+        <label for="region-filter">Region:</label>
+        <select id="trip-region-filter">
+            <option value="">All Regions</option>
+            <% if (typeof regions !== 'undefined') { regions.forEach((region) => { %>
+                <option value="<%= region %>"><%= region.charAt(0).toUpperCase() + region.slice(1) %></option>
+            <% }); } %>
+        </select>
+    </div>
+
+    <div>
+        <label for="season-filter">Season:</label>
+        <select id="trip-season-filter">
+            <option value="">Any Season</option>
+            <% if (typeof seasons !== 'undefined') { seasons.forEach((season) => { %>
+                <option value="<%= season %>"><%= season.charAt(0).toUpperCase() + season.slice(1) %></option>
+            <% }); } %>
+        </select>
+    </div>
+    
+    <button id="search-btn" type="button" style="padding: 0.25rem 1rem;">Search</button>
 </div>
 
 <div class="routes-grid" id="trips-container"></div>
+
+
+<div id="pagination-controls" style="text-align: center; margin-top: 2rem;">
+    <button id="prev-btn" style="padding: 0.5rem 1rem; margin-right: 1rem;">Previous</button>
+    <span id="page-info" style="margin: 0 1rem; font-weight: bold;"></span>
+    <button id="next-btn" style="padding: 0.5rem 1rem; margin-left: 1rem;">Next</button>
+</div>
+
 
 <template id="trip-template">
     <div class="route-card">
@@ -65,38 +84,56 @@
     document.addEventListener('DOMContentLoaded', async () => {
         const container = document.getElementById('trips-container');
         const template = document.getElementById('trip-template');
-        const regionFilter = document.getElementById('region-filter');
-        const seasonFilter = document.getElementById('season-filter');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const pageInfo = document.getElementById('page-info');
+        
+        // Filter elements
+        const searchInput = document.getElementById('search-input');
+        const regionFilter = document.getElementById('trip-region-filter');
+        const seasonFilter = document.getElementById('trip-season-filter');
+        const searchBtn = document.getElementById('search-btn');
 
-        let allTrips = []; 
+        let currentPage = 1;
+        const limit = 10; 
 
-        try {
-            // Fetch the data
-            const response = await fetch('/api/trips');
-            if (!response.ok) throw new Error('Failed to fetch trips');
-            allTrips = await response.json();
+        async function loadTrips(page) {
+            try {
+                container.innerHTML = '<p>Loading trips...</p>';
+                
+                // Build query string based on filter values
+                const params = new URLSearchParams({
+                    page: page,
+                    limit: limit
+                });
 
-            // Check the URL for query params to pre-select the dropdowns
-            const urlParams = new URLSearchParams(window.location.search);
-            const urlRegion = urlParams.get('region');
-            const urlSeason = urlParams.get('season');
+                if (searchInput.value.trim()) params.append('q', searchInput.value.trim());
+                if (regionFilter.value) params.append('region', regionFilter.value);
+                if (seasonFilter.value) params.append('season', seasonFilter.value);
 
-            if (urlRegion) regionFilter.value = urlRegion;
-            if (urlSeason) seasonFilter.value = urlSeason;
+                const response = await fetch(`/api/trips?${params.toString()}`);
+                if (!response.ok) throw new Error('Failed to fetch trips');
+                
+                const result = await response.json();
+                
+                renderTrips(result.data);
+                
+                currentPage = result.pagination.page;
+                pageInfo.textContent = `Page ${currentPage} of ${result.pagination.totalPages || 1}`;
+                prevBtn.disabled = !result.pagination.hasPreviousPage;
+                nextBtn.disabled = !result.pagination.hasNextPage;
 
-            // Initial render (with filters applied if they exist in the URL)
-            filterTrips();
-
-        } catch (error) {
-            console.error(error);
-            container.innerHTML = '<p>Error loading trips. Please try again later.</p>';
+            } catch (error) {
+                console.error(error);
+                container.innerHTML = '<p>Error loading trips. Please try again later.</p>';
+            }
         }
 
         function renderTrips(tripsToRender) {
             container.innerHTML = ''; 
 
             if (tripsToRender.length === 0) {
-                container.innerHTML = '<p>No trips match your filters.</p>';
+                container.innerHTML = '<p>No trips match your search.</p>';
                 return;
             }
 
@@ -133,32 +170,41 @@
             });
         }
 
-        function filterTrips() {
-            const selectedRegion = regionFilter.value;
-            const selectedSeason = seasonFilter.value;
+        // Event Listeners
+        prevBtn.addEventListener('click', () => {
+            if (currentPage > 1) loadTrips(currentPage - 1);
+        });
 
-            // If the URL changes or the user selects a dropdown, update the URL so it can be shared
-            const newUrl = new URL(window.location);
-            if (selectedRegion !== 'all') newUrl.searchParams.set('region', selectedRegion);
-            else newUrl.searchParams.delete('region');
-            
-            if (selectedSeason !== 'all') newUrl.searchParams.set('season', selectedSeason);
-            else newUrl.searchParams.delete('season');
-            
-            window.history.pushState({}, '', newUrl);
+        nextBtn.addEventListener('click', () => {
+            loadTrips(currentPage + 1);
+        });
 
-            const filtered = allTrips.filter(trip => {
-                const matchesRegion = selectedRegion === 'all' || trip.region === selectedRegion;
-                const matchesSeason = selectedSeason === 'all' || trip.bestSeason === selectedSeason;
-                return matchesRegion && matchesSeason;
-            });
+        // When the user clicks search, or changes a dropdown, reset to page 1 and load
+        searchBtn.addEventListener('click', (e) => {
+            e.preventDefault(); // Stop page reload
+            loadTrips(1);
+        });
 
-            renderTrips(filtered);
-        }
+        // regionFilter.addEventListener('change', (e) => {
+        //     e.preventDefault();
+        //     loadTrips(1);
+        // });
 
-        // Event listeners for the dropdowns
-        regionFilter.addEventListener('change', filterTrips);
-        seasonFilter.addEventListener('change', filterTrips);
+        // seasonFilter.addEventListener('change', (e) => {
+        //     e.preventDefault();
+        //     loadTrips(1);
+        // });
+        
+        // Allow pressing "Enter" in the search box to search
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault(); // Stop page reload
+                loadTrips(1);
+            }
+        });
+
+        // Initial load
+        loadTrips(1);
     });
 </script>
 
