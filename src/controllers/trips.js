@@ -4,8 +4,35 @@ import { getDb } from "../db/connect.js";
 // --- API Controllers ---
 export async function getTripsApi(req, res) {
   try {
-    const trips = await getAllTrips();
-    return res.status(200).json(trips);
+    // 1. Parse and validate query parameters
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+
+    if (page < 1 || limit < 1 || limit > 50) {
+      return res.status(400).json({ 
+        errors: [{ message: "page and limit must be valid positive numbers. Maximum limit is 50." }] 
+      });
+    }
+
+    // 2. Fetch data from the model
+    const { trips, totalItems } = await getAllTrips({ page, limit });
+
+    // 3. Calculate pagination metadata
+    const totalPages = Math.ceil(totalItems / limit);
+    
+    // 4. Send the response
+    return res.status(200).json({
+      data: trips,
+      pagination: {
+        page,
+        limit,
+        totalItems,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1
+      }
+    });
+
   } catch (error) {
     console.error("DATABASE ERROR:", error);
     return res.status(500).json({ message: "Internal server error" });
