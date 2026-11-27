@@ -283,17 +283,9 @@
         let updatedTickets = await getClasses(selectedDay);
         const distance = await getTripDistance();
         
-        //Right now the collection that contains the ticket class
-        //do not have a day so the api will return an empty array
-        //until the collection is updated to support days
-        const allClassesAvailable = Array.isArray(updatedTickets) && updatedTickets.length === 0;
-       
         const parent = document.querySelector(".ticket-options");
         const renderedClasses = document.querySelectorAll(".ticket-card");
 
-        //cancell when all classes are available
-        if(allClassesAvailable) return        
-        
         //re-render ticket classes
         let HTML = "";
         
