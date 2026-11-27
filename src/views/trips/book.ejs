@@ -11,6 +11,35 @@
         <input type="hidden" name="scheduleId" value="<%= schedule.id %>">
         <input type="hidden" name="tripId" value="<%= schedule.tripId %>">
 
+                <section class="day-selection">
+            <h2 class="section-title">Select The Day</h2>
+            
+            <div class="schedule-info">
+                <div class="time-display">
+                    <span class="departure-time"><%= schedule.departureTime %></span>
+                    <span class="time-separator">→</span>
+                    <span class="arrival-time"><%= schedule.arrivalTime %></span>
+                </div>
+                <div class="days-display">
+                    <% if (schedule && schedule.daysOfWeek) { %>
+                        <% schedule.daysOfWeek.forEach((day, index) => { %>
+                            <label class="day-pill<%= index === 0 ? ' selected' : '' %>" for="day-<%= index %>">
+                                <input
+                                    type="radio"
+                                    name="selectedDay"
+                                    id="day-<%= index %>"
+                                    value="<%= day %>"
+                                    <%= index === 0 ? 'checked' : '' %>
+                                    required
+                                >
+                                <span class="day-text"><%= day %></span>
+                            </label>
+                        <% }) %>
+                    <% } %>
+                </div>
+            </div>
+        </section>
+
         <section class="ticket-selection">
             <h2 class="section-title">Select Your Ticket</h2>
             
@@ -53,35 +82,6 @@
                         </label>
                     <% }) %>
                 <% } %>
-            </div>
-        </section>
-
-        <section class="day-selection">
-            <h2 class="section-title">Select The Day</h2>
-            
-            <div class="schedule-info">
-                <div class="time-display">
-                    <span class="departure-time"><%= schedule.departureTime %></span>
-                    <span class="time-separator">→</span>
-                    <span class="arrival-time"><%= schedule.arrivalTime %></span>
-                </div>
-                <div class="days-display">
-                    <% if (schedule && schedule.daysOfWeek) { %>
-                        <% schedule.daysOfWeek.forEach((day, index) => { %>
-                            <label class="day-pill<%= index === 0 ? ' selected' : '' %>" for="day-<%= index %>">
-                                <input
-                                    type="radio"
-                                    name="selectedDay"
-                                    id="day-<%= index %>"
-                                    value="<%= day %>"
-                                    <%= index === 0 ? 'checked' : '' %>
-                                    required
-                                >
-                                <span class="day-text"><%= day %></span>
-                            </label>
-                        <% }) %>
-                    <% } %>
-                </div>
             </div>
         </section>
 
@@ -246,7 +246,7 @@
     }
     
     //ticket class template
-    const ticketClassTemplate = (ticket, index, distance) => {
+    const ticketClassTemplate = (ticket, selectedClass, distance) => {
        const price = Number(distance) * Number(ticket.pricePerKm)
        return `<label class="ticket-card" for="ticket-${ticket.class}">
                             <input 
@@ -256,7 +256,7 @@
                                 value="${ticket.class}"
                                 data-name="${ticket.name}"
                                 data-price="${price}"
-                                ${ index === 1 ? 'checked' : ''}
+                                ${ ticket.class === selectedClass ? 'checked' : ''}
                                 required
                             >
                             <div class="ticket-content">
@@ -280,6 +280,7 @@
     //update ticket classes visually
     const updateTicketClasses = async (day) => {
         const selectedDay = day;
+        const selectedClass = document.querySelector('input[name="ticketClass"]:checked')?.value;
         let updatedTickets = await getClasses(selectedDay);
         const distance = await getTripDistance();
         
@@ -289,16 +290,10 @@
         //re-render ticket classes
         let HTML = "";
         
-        if(updatedTickets.length === 1){
-      		HTML += ticketClassTemplate(updatedTickets[0], 1, distance); //This will select the only available element
-        }else{
-        	updatedTickets.forEach((ticketClass, i) => {
-        	   HTML += ticketClassTemplate(ticketClass, i, distance);
-            })
-        } 
-
-        console.log(HTML);
-
+        updatedTickets.forEach((ticketClass) => {
+        	HTML += ticketClassTemplate(ticketClass, selectedClass, distance);
+        })
+         
         //update UI
         parent.innerHTML = HTML;
         updateTicketRadios();
