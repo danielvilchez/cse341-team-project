@@ -4,8 +4,81 @@ import { getDb } from "../db/connect.js";
 // --- API Controllers ---
 export async function getTripsApi(req, res) {
   try {
-    const trips = await getAllTrips();
-    return res.status(200).json(trips);
+    // 1. Parse and validate pagination
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+
+    if (page < 1 || limit < 1 || limit > 50) {
+      return res.status(400).json({ 
+        errors: [{ message: "page and limit must be valid positive numbers. Maximum limit is 50." }] 
+      });
+    }
+
+    // 2. Validate sort field
+    const allowedSortFields = ['name', 'duration', 'distance', 'price'];
+    if (req.query.sort && !allowedSortFields.includes(req.query.sort)) {
+      return res.status(400).json({ 
+        errors: [{ message: "sort field is not supported." }] 
+      });
+    }
+    const sort = req.query.sort || 'name';
+    const order = req.query.order === 'desc' ? 'desc' : 'asc';
+
+    // 3. Build the filter object
+    const filter = {};
+    
+    if (req.query.region) {
+      filter.region = req.query.region;
+    }
+    
+    if (req.query.season) {
+      filter.bestSeason = req.query.season;
+    }
+
+    // 4. Handle text search (q)
+    if (req.query.q) {
+      const searchText = req.query.q.trim();
+      if (searchText.length > 0) {
+        // Use MongoDB Regex for simple text search on name and description
+        filter.$or = [
+          { name: { $regex: searchText, $options: 'i' } },
+          { description: { $regex: searchText, $options: 'i' } }
+        ];
+      }
+    }
+
+    // 5. Fetch data from the model
+    const { trips, totalItems } = await getAllTrips({ 
+      filter, 
+      page, 
+      limit, 
+      sort, 
+      order 
+    });
+
+    // 6. Calculate pagination metadata
+    const totalPages = Math.ceil(totalItems / limit);
+    
+    // 7. Send the response
+    return res.status(200).json({
+      data: trips,
+      query: {
+        q: req.query.q || null,
+        region: req.query.region || null,
+        season: req.query.season || null,
+        sort,
+        order
+      },
+      pagination: {
+        page,
+        limit,
+        totalItems,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1
+      }
+    });
+
   } catch (error) {
     console.error("DATABASE ERROR:", error);
     return res.status(500).json({ message: "Internal server error" });
