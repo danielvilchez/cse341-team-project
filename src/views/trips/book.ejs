@@ -14,7 +14,7 @@
         <section class="ticket-selection">
             <h2 class="section-title">Select Your Ticket</h2>
             
-            <div class="ticket-options">
+            <div class="ticket-options" data-trip-id="<%= schedule.tripId %>">
                 <% if (ticketOptions) { %>
                     <% ticketOptions.forEach((ticket, index) => { %>
                         <label class="ticket-card" for="ticket-<%= ticket.class %>">
@@ -183,8 +183,6 @@
             <a href="/trips/<%= schedule.tripId %>" class="btn btn-secondary">Cancel</a>
             <button type="submit" class="btn btn-primary">Confirm Booking</button>
         </div>
-       
-        <span id="tripId" class="display:none" data-id="<%= schedule.tripId %>"></span>
     </form>
 </article>
 
@@ -200,7 +198,7 @@
     
     //gets distance
     const getTripDistance = async () => {
-    	const tripId = document.getElementById("tripId").dataset.id;
+    	const tripId = document.querySelector(".ticket-options").dataset.tripId;
     	const api = `/api/trips/${tripId}`;
     	try{
     		const res = await fetch(api);
