@@ -43,22 +43,74 @@ describe('Bookings API', () => {
     expect(await getDb().collection('bookings').countDocuments()).toBe(0);
   });
 
-  test('GET /api/bookings returns an empty bookings array', async () => {
+  test('GET /api/bookings returns an empty paginated response', async () => {
     const response = await request(app).get('/api/bookings');
 
     expect(response.status).toBe(200);
     expect(response.headers['content-type']).toContain('application/json');
-    expect(response.body).toEqual({ bookings: [] });
+    expect(response.body).toEqual({
+      data: [],
+      meta: {
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 0,
+        sort: 'createdAt',
+        order: 'desc'
+      }
+    });
   });
 
-  test('GET /api/bookings returns created bookings', async () => {
+  test('GET /api/bookings returns created bookings with pagination metadata', async () => {
     await request(app).post('/api/bookings').send(bookingRequest);
 
     const response = await request(app).get('/api/bookings');
 
     expect(response.status).toBe(200);
-    expect(response.body.bookings).toHaveLength(1);
-    expect(response.body.bookings[0]).toHaveProperty('ticketClass', 'standard');
+    expect(response.body.data).toHaveLength(1);
+    expect(response.body.data[0]).toHaveProperty('ticketClass', 'standard');
+    expect(response.body.meta).toEqual({
+      page: 1,
+      limit: 10,
+      total: 1,
+      totalPages: 1,
+      sort: 'createdAt',
+      order: 'desc'
+    });
+  });
+
+  test('GET /api/bookings supports pagination parameters', async () => {
+    for (let i = 0; i < 5; i += 1) {
+      await request(app).post('/api/bookings').send(bookingRequest);
+    }
+
+    const response = await request(app)
+      .get('/api/bookings?page=2&limit=2');
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toHaveLength(2);
+    expect(response.body.meta).toEqual({
+      page: 2,
+      limit: 2,
+      total: 5,
+      totalPages: 3,
+      sort: 'createdAt',
+      order: 'desc'
+    });
+  });
+
+  test.each([
+    ['page=0', '/api/bookings?page=0'],
+    ['negative page', '/api/bookings?page=-1'],
+    ['non-numeric page', '/api/bookings?page=abc'],
+    ['limit=0', '/api/bookings?limit=0'],
+    ['non-numeric limit', '/api/bookings?limit=abc'],
+    ['limit greater than 100', '/api/bookings?limit=101']
+  ])('GET /api/bookings rejects invalid pagination: %s', async (_description, url) => {
+    const response = await request(app).get(url);
+
+    expect(response.status).toBe(400);
+    expect(response.body).toHaveProperty('error');
   });
 
   test('GET /api/bookings/:bookingId returns the matching booking', async () => {

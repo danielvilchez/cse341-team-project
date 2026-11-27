@@ -1,3 +1,4 @@
+
 const hookBookingsAdmin = async () => {
     const listEl = document.getElementById('bookings-list');
     const templateEl = document.getElementById('booking-card-template');
@@ -12,13 +13,23 @@ const hookBookingsAdmin = async () => {
     const errorEl = document.getElementById('bookings-error');
     const retryEl = document.getElementById('bookings-retry');
 
-    if (!listEl || !templateEl || !cardsViewEl || !tableListEl || !tableWrapEl
-        || !viewControlsEl || !cardsButtonEl || !tableButtonEl
-        || !loadingEl || !emptyEl || !errorEl) {
+    const paginationEl = document.getElementById('bookings-pagination');
+    const previousButtonEl = document.getElementById('bookings-previous');
+    const nextButtonEl = document.getElementById('bookings-next');
+    const pageInfoEl = document.getElementById('bookings-page-info');
+
+    if (
+        !listEl || !templateEl || !cardsViewEl || !tableListEl ||
+        !tableWrapEl || !viewControlsEl || !cardsButtonEl ||
+        !tableButtonEl || !loadingEl || !emptyEl || !errorEl ||
+        !paginationEl || !previousButtonEl || !nextButtonEl || !pageInfoEl
+    ) {
         return;
     }
 
     let activeView = 'cards';
+    let currentPage = 1;
+    const pageLimit = 10;
 
     const setView = (view) => {
         activeView = view;
@@ -33,12 +44,21 @@ const hookBookingsAdmin = async () => {
         emptyEl.hidden = state !== 'empty';
         errorEl.hidden = state !== 'error';
         viewControlsEl.hidden = state !== 'loaded';
+        paginationEl.hidden = state !== 'loaded';
+
         if (state === 'loaded') {
             setView(activeView);
         } else {
             cardsViewEl.hidden = true;
             tableWrapEl.hidden = true;
         }
+    };
+
+    const updatePagination = (meta) => {
+        currentPage = meta.page;
+        pageInfoEl.textContent = `Page ${meta.page} of ${meta.totalPages}`;
+        previousButtonEl.disabled = meta.page <= 1;
+        nextButtonEl.disabled = meta.page >= meta.totalPages;
     };
 
     const addCell = (row, value) => {
@@ -59,18 +79,21 @@ const hookBookingsAdmin = async () => {
     const renderBookings = (bookings) => {
         if (bookings.length === 0) {
             listEl.replaceChildren();
+            tableListEl.replaceChildren();
             setState('empty');
             return;
         }
 
         const cardsFragment = document.createDocumentFragment();
         const tableFragment = document.createDocumentFragment();
+
         bookings.forEach((booking) => {
             const card = templateEl.content.cloneNode(true);
             const passengers = Array.isArray(booking.passengers) ? booking.passengers : [];
             const passengerNames = passengers.map((passenger) => (
                 [passenger.firstName, passenger.lastName].filter(Boolean).join(' ')
             )).filter(Boolean);
+
             const passengerSummary = passengerNames.join(', ') || `${passengers.length} passenger(s)`;
             const createdAt = formatDate(booking.createdAt);
 
@@ -81,6 +104,7 @@ const hookBookingsAdmin = async () => {
             card.querySelector('[data-field="travel-day"]').textContent = booking.selectedDay || 'Not available';
             card.querySelector('[data-field="passengers"]').textContent = passengerSummary;
             card.querySelector('[data-field="created"]').textContent = createdAt;
+
             cardsFragment.appendChild(card);
 
             const row = document.createElement('tr');
@@ -91,6 +115,7 @@ const hookBookingsAdmin = async () => {
             addCell(row, booking.selectedDay || 'Not available');
             addCell(row, passengerSummary);
             addCell(row, createdAt);
+
             tableFragment.appendChild(row);
         });
 
@@ -99,21 +124,32 @@ const hookBookingsAdmin = async () => {
         setState('loaded');
     };
 
-    const loadBookings = async () => {
+    const loadBookings = async (page = currentPage) => {
         setState('loading');
 
         try {
-            const response = await fetch('/api/bookings');
+            const response = await fetch(
+                `/api/bookings?page=${page}&limit=${pageLimit}`
+            );
+
             if (!response.ok) {
                 throw new Error(`Failed to load bookings (${response.status})`);
             }
 
             const payload = await response.json();
-            if (!payload || !Array.isArray(payload.bookings)) {
+
+            if (
+                !payload ||
+                !Array.isArray(payload.data) ||
+                !payload.meta ||
+                typeof payload.meta.page !== 'number' ||
+                typeof payload.meta.totalPages !== 'number'
+            ) {
                 throw new Error('The bookings response is invalid.');
             }
 
-            renderBookings(payload.bookings);
+            updatePagination(payload.meta);
+            renderBookings(payload.data);
         } catch (error) {
             console.error('Error loading bookings:', error);
             setState('error');
@@ -121,10 +157,23 @@ const hookBookingsAdmin = async () => {
     };
 
     if (retryEl) {
-        retryEl.addEventListener('click', loadBookings);
+        retryEl.addEventListener('click', async () => {
+            await loadBookings();
+        });
     }
+
     cardsButtonEl.addEventListener('click', () => setView('cards'));
     tableButtonEl.addEventListener('click', () => setView('table'));
+
+    previousButtonEl.addEventListener('click', async () => {
+        if (currentPage > 1) {
+            await loadBookings(currentPage - 1);
+        }
+    });
+
+    nextButtonEl.addEventListener('click', async () => {
+        await loadBookings(currentPage + 1);
+    });
 
     await loadBookings();
 };
