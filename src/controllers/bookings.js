@@ -1,7 +1,10 @@
+import { findUserById } from '../models/users.js';
+
 import {
     createBooking,
     getBookingById,
-    getAllBookings
+    getAllBookings,
+    getBookingsByPassengerEmail
 } from '../models/bookings.js';
 
 import { getTripById } from '../models/trips.js';
@@ -56,6 +59,24 @@ const getBookingByIdHandler = async (req, res) => {
     } catch (error) {
         console.error('Error fetching booking:', error);
         return res.status(500).json({ error: 'Failed to fetch booking' });
+    }
+};
+
+// Get bookings belonging to the authenticated customer
+const getMyBookingsHandler = async (req, res) => {
+    try {
+        const user = await findUserById(req.user.id);
+
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const bookings = await getBookingsByPassengerEmail(user.email);
+
+        return res.status(200).json({ bookings });
+    } catch (error) {
+        console.error('Error fetching customer bookings:', error);
+        return res.status(500).json({ error: 'Failed to fetch customer bookings' });
     }
 };
 
@@ -124,7 +145,7 @@ const processBookingRequest = async (req, res, next) => {
 
         return res.redirect(302, `/trips/confirmation/${booking.id}`);
     } catch (error) {
-        return next(error)
+        return next(error);
     }
 };
 
@@ -152,6 +173,7 @@ export {
     createBookingHandler,
     getAllBookingsHandler,
     getBookingByIdHandler,
+    getMyBookingsHandler,
     bookingsAdminPage,
     bookingPage,
     processBookingRequest,

@@ -1,0 +1,143 @@
+<%- include('./partials/header') %>
+
+<section class="users-admin" id="users-admin"
+    data-current-user-id="<%= currentUserId %>"
+    data-can-edit-roles="<%= isAdmin %>">
+    <div class="users-admin-heading">
+        <h1>User Administration</h1>
+        <p>View and update account information.</p>
+    </div>
+
+    <% if (isAdmin) { %>
+        <form class="users-search" id="users-search-form" role="search">
+            <label class="visually-hidden" for="users-search-input">
+                Search users by name, username, or email
+            </label>
+            <input id="users-search-input" type="search" autocomplete="off"
+                placeholder="Search users...">
+            <button type="submit" aria-label="Search users">
+                <img src="/images/icons/search.svg" alt="" aria-hidden="true">
+            </button>
+        </form>
+    <% } %>
+
+    <% if (isAdmin) { %>
+        <div class="users-toolbar" id="users-toolbar">
+            <div class="users-view-controls" role="group" aria-label="User display mode">
+                <button id="users-cards-button" type="button" aria-label="Card view" aria-pressed="true">
+                    <img src="/images/icons/grid.svg" alt="" aria-hidden="true">
+                </button>
+                <button id="users-list-button" type="button" aria-label="List view" aria-pressed="false">
+                    <img src="/images/icons/list-check.svg" alt="" aria-hidden="true">
+                </button>
+            </div>
+        </div>
+    <% } %>
+
+    <p id="users-loading" role="status" aria-live="polite">Loading users...</p>
+    <p id="users-empty" role="status" hidden>No users found.</p>
+    <div id="users-error" role="alert" hidden>
+        <p id="users-error-message">Unable to load users. Please try again.</p>
+        <button id="users-retry" type="button">Retry</button>
+    </div>
+    <p id="users-message" role="status" aria-live="polite" hidden></p>
+    <div id="users-list" class="users-grid" data-view="<%= isAdmin ? 'cards' : 'list' %>" hidden></div>
+
+    <nav id="users-pagination" class="users-pagination" aria-label="User results pages" hidden>
+        <button id="users-previous-page" type="button">Previous</button>
+        <span id="users-page-status" role="status" aria-live="polite"></span>
+        <button id="users-next-page" type="button">Next</button>
+    </nav>
+
+<template id="user-card-template">
+    <article class="user-card">
+        <div class="user-card-details" data-field="details">
+            <h2 data-field="name"></h2>
+            <dl>
+                <div>
+                    <dt>Username</dt>
+                    <dd data-field="username"></dd>
+                </div>
+                <div>
+                    <dt>Email</dt>
+                    <dd data-field="email"></dd>
+                </div>
+                <% if (isAdmin) { %>
+                    <div data-field="role-details">
+                        <dt>Role</dt>
+                        <dd data-field="role"></dd>
+                    </div>
+                <% } %>
+            </dl>
+        </div>
+        <div class="user-card-actions" data-field="actions">
+            <button data-action="edit" type="button" aria-label="Edit user">
+                <img src="/images/icons/pencil-square.svg" alt="" aria-hidden="true">
+            </button>
+            <button data-action="delete" type="button" aria-label="Delete user">
+                <img src="/images/icons/x-lg.svg" alt="" aria-hidden="true">
+            </button>
+        </div>
+        <form class="user-edit-form" data-action="update" hidden>
+            <label>
+                Display name
+                <input data-field="name-input" name="name" type="text" required>
+            </label>
+            <label>
+                Username
+                <input data-field="username-input" name="username" type="text" required>
+            </label>
+            <label>
+                Email
+                <input data-field="email-input" name="email" type="email" required>
+            </label>
+            <label>
+                New password (leave blank to keep current password)
+                <input data-field="password-input" name="password" type="password"
+                    autocomplete="new-password">
+            </label>
+            <% if (isAdmin) { %>
+                <label data-field="role-control">
+                    Role
+                    <select data-field="role-input" name="role">
+                        <option value="customer">Customer</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </label>
+            <% } %>
+            <div class="user-edit-actions">
+                <button type="submit">Save changes</button>
+                <button data-action="cancel-edit" type="button">Cancel</button>
+            </div>
+        </form>
+    </article>
+</template>
+
+<dialog id="user-delete-dialog" aria-labelledby="user-delete-title">
+    <form id="user-delete-form">
+        <h2 id="user-delete-title">Confirm user deletion</h2>
+        <p>
+            This will permanently delete
+            <strong id="delete-user-name"></strong>.
+            This action is irreversible.
+        </p>
+        <label for="delete-user-password">
+            Enter the password for your signed-in account, not the selected user's account.
+        </label>
+        <input id="delete-user-password" name="password" type="password"
+            autocomplete="current-password" required>
+        <p id="delete-user-error" role="alert" hidden></p>
+        <div class="user-delete-actions">
+            <button id="cancel-user-delete" type="button">Cancel</button>
+            <button type="submit">
+                <img src="/images/icons/x-lg.svg" alt="" aria-hidden="true">
+                Delete user
+            </button>
+        </div>
+    </form>
+</dialog>
+</section>
+
+<script src="/js/users-admin.js" defer></script>
+
+<%- include('./partials/footer') %>

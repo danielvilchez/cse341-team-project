@@ -3,14 +3,14 @@ import { homePage, aboutPage, testErrorPage } from "./index.js";
 import { trainsPage } from "./trains.js";
 import railTripsRouter from "./trips.js";
 import { bookingsAdminPage } from '../controllers/bookings.js';
-import { 
-  renderRegisterPage, 
-  registerUser, 
-  renderLoginPage, 
-  loginUser, 
-  logoutUser 
+import {
+  renderRegisterPage,
+  registerUser,
+  renderLoginPage,
+  loginUser,
+  logoutUser
 } from "../controllers/auth.js";
-import { requirePageRole } from "../middleware/auth.js";
+import { requirePageLogin, requirePageRole } from "../middleware/auth.js";
 
 const router = Router();
 
@@ -36,9 +36,23 @@ router.get("/login", renderLoginPage);
 router.post("/login", loginUser);
 router.post("/logout", logoutUser);
 
+// Protected user administration page
+router.get("/users-admin", requirePageLogin, (req, res) => {
+  res.render("users-admin", {
+    title: "User Administration",
+    currentUserId: req.user.id,
+    isAdmin: req.user.role === "admin"
+  });
+});
+
 // Admin Dashboard (Protected)
 router.get("/admin/dashboard", requirePageRole('admin'), (req, res) => {
   res.render("admin/dashboard", { title: "Admin Dashboard" });
+});
+
+// Customer Dashboard (Protected)
+router.get("/dashboard", requirePageRole("customer"), (req, res) => {
+  res.render("customer/dashboard", { title: "Customer Dashboard" });
 });
 
 // Test 500 error page
