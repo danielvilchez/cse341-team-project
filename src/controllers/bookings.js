@@ -8,7 +8,7 @@ import {
 } from '../models/bookings.js';
 
 import { getTripById } from '../models/trips.js';
-import { getAllTicketClasses } from "../models/ticket-classes.js";
+import { getAllTicketClasses, getTicketClassesForDay } from "../models/ticket-classes.js";
 
 import { getDb } from '../db/connect.js';
 import { generateBookingCode } from '../includes/helpers.js';
@@ -26,6 +26,36 @@ const createBookingHandler = async (req, res) => {
             passengers: requestBody.passengers
         };
 
+        const validDays = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+
+		//valid day?
+        if(!validDays.some(day => day === bookingData.selectedDay)){
+        	const error = new Error("Invalid Day");
+        	error.name = "ValidationError";
+            throw error;
+        }
+
+        const ticketClasses = await getTicketClassesForDay(bookingData.selectedDay);
+
+		//ticket exist?
+        if(!ticketClasses.some(ticketClass => ticketClass.class === bookingData.ticketClass)){
+        	const error = new Error("Invalid ticket class");
+        	error.name = "ValidationError";
+        	throw error;
+        }
+        
+        ticketClasses.forEach(ticketClass => {
+        	if(ticketClass.class === bookingData.ticketClass){
+        		//invalidate the request if the ticket class is not available for that day
+        		if(!ticketClass.days.some(day => day === bookingData.selectedDay)){
+        			const error = new Error("Unavailable ticket class");
+        			error.name = "ValidationError";
+        			throw error;
+        		}
+        	}
+        	
+        })
+        
         const booking = await createBooking(bookingData);
         return res.status(201).json({ booking });
     } catch (error) {
