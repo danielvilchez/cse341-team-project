@@ -157,17 +157,23 @@ const router = Router();
  *           required:
  *             - page
  *             - limit
- *             - total
+ *             - totalItems
  *             - totalPages
+ *             - hasNextPage
+ *             - hasPreviousPage
  *           properties:
  *             page:
  *               type: integer
  *             limit:
  *               type: integer
- *             total:
+ *             totalItems:
  *               type: integer
  *             totalPages:
  *               type: integer
+ *             hasNextPage:
+ *               type: boolean
+ *             hasPreviousPage:
+ *               type: boolean
  *     UserResponse:
  *       type: object
  *       required:
@@ -483,7 +489,7 @@ router.get("/api/trips/:id/schedules", getSchedulesByTrip);
  * /api/users:
  *   get:
  *     summary: List users visible to the authenticated user
- *     description: Admins receive all users. Customers receive only their own user record. Passwords and password hashes are never returned.
+ *     description: Admin results are sorted by username, including search results. Customers receive only their own record on page 1 regardless of the requested page or search. Passwords and password hashes are never returned.
  *     tags:
  *       - Users
  *     security:
@@ -503,14 +509,16 @@ router.get("/api/trips/:id/schedules", getSchedulesByTrip);
  *         schema:
  *           type: integer
  *           minimum: 1
+ *           default: 1
  *       - in: query
  *         name: limit
  *         required: false
- *         description: Page size; defaults to 25 and cannot exceed 100.
+ *         description: Page size; defaults to 10 and cannot exceed 50.
  *         schema:
  *           type: integer
  *           minimum: 1
- *           maximum: 100
+ *           maximum: 50
+ *           default: 10
  *     responses:
  *       200:
  *         description: Safe user records and pagination metadata

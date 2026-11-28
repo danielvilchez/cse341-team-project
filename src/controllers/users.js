@@ -10,8 +10,8 @@ import {
 } from '../models/users.js';
 import { invalidateUserSessions } from '../db/sessions.js';
 
-const DEFAULT_PAGE_SIZE = 25;
-const MAX_PAGE_SIZE = 100;
+const DEFAULT_PAGE_SIZE = 10;
+const MAX_PAGE_SIZE = 50;
 const MAX_SEARCH_LENGTH = 100;
 
 const toSafeUser = (user) => ({
@@ -29,6 +29,18 @@ const parsePositiveInteger = (value) => {
 
     const parsed = Number(value);
     return Number.isSafeInteger(parsed) ? parsed : null;
+};
+
+const paginationMetadata = (page, limit, totalItems) => {
+    const totalPages = Math.ceil(totalItems / limit);
+    return {
+        page,
+        limit,
+        totalItems,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1
+    };
 };
 
 const handleUserError = (error, res, operation) => {
@@ -77,15 +89,14 @@ const getUsersHandler = async (req, res) => {
 
         const search = searchValue.trim();
         if (req.user.role === 'admin') {
-            const [users, total] = await Promise.all([
+            const [users, totalItems] = await Promise.all([
                 findUsersPage({ search, page, limit }),
                 countUsers(search)
             ]);
-            const totalPages = Math.ceil(total / limit);
 
             return res.status(200).json({
                 users: users.map(toSafeUser),
-                pagination: { page, limit, total, totalPages }
+                pagination: paginationMetadata(page, limit, totalItems)
             });
         }
 
@@ -97,7 +108,7 @@ const getUsersHandler = async (req, res) => {
 
             return res.status(200).json({
                 users: [toSafeUser(user)],
-                pagination: { page: 1, limit, total: 1, totalPages: 1 }
+                pagination: paginationMetadata(1, limit, 1)
             });
         }
 

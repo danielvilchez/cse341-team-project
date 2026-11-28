@@ -47,7 +47,10 @@ describe('User API controllers', () => {
                 email: 'customer@example.com',
                 role: 'customer'
             }],
-            pagination: { page: 1, limit: 25, total: 1, totalPages: 1 }
+            pagination: {
+                page: 1, limit: 10, totalItems: 1, totalPages: 1,
+                hasNextPage: false, hasPreviousPage: false
+            }
         });
     });
 
@@ -61,7 +64,7 @@ describe('User API controllers', () => {
 
         expect(res.status).toHaveBeenCalledWith(200);
         expect(res.json.mock.calls[0][0].users).toHaveLength(2);
-        expect(res.json.mock.calls[0][0].pagination.total).toBe(2);
+        expect(res.json.mock.calls[0][0].pagination.totalItems).toBe(2);
         expect(res.json.mock.calls[0][0].users[0]).not.toHaveProperty('passwordHash');
     });
 
