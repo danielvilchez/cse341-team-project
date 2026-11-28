@@ -43,6 +43,28 @@ describe('Bookings API', () => {
     expect(await getDb().collection('bookings').countDocuments()).toBe(0);
   });
 
+  test('POST /api/bookings rejects invalid tickets', async () => {
+     const response = await request(app)
+      .post('/api/bookings')
+      .send({ ...bookingRequest, selectedDay:"wednesday" ,ticketClass: 'premium' });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ error: 'Invalid booking data' });
+    expect(await getDb().collection('bookings').countDocuments()).toBe(0);
+  })
+
+  test('POST /api/bookings rejects invalid days', async () => {
+     const response = await request(app)
+      .post('/api/bookings')
+      //The day is named 'wersday' instead of 'wednesday' on purpose so that
+      //we can test what happens if the user uses a day that does not exist
+      .send({ ...bookingRequest, selectedDay:"wersday"});
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ error: 'Invalid booking data' });
+    expect(await getDb().collection('bookings').countDocuments()).toBe(0);
+  })
+
   test('GET /api/bookings returns an empty bookings array', async () => {
     const response = await request(app).get('/api/bookings');
 
