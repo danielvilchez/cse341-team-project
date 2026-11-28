@@ -33,7 +33,7 @@ const hookUsersAdmin = async () => {
         return;
     }
 
-    const PAGE_SIZE = 25;
+    const PAGE_SIZE = 10;
     const currentUserId = rootEl.dataset.currentUserId;
     let canEditRoles = rootEl.dataset.canEditRoles === 'true';
     let users = [];
@@ -177,7 +177,7 @@ const hookUsersAdmin = async () => {
                     throw new Error('The updated user response is invalid.');
                 }
 
-                if (payload.user.id === currentUserId && payload.user.role !== 'admin') {
+                if (canEditRoles && payload.user.id === currentUserId && payload.user.role !== 'admin') {
                     canEditRoles = false;
                     currentQuery = '';
                     currentPage = 1;
@@ -195,10 +195,9 @@ const hookUsersAdmin = async () => {
                     totalPages = 1;
                     renderUsers(users);
                 } else {
-                    users = users.map((listedUser) => (
-                        listedUser.id === payload.user.id ? payload.user : listedUser
-                    ));
-                    renderUsers(users);
+                    if (!await loadUsers()) {
+                        return;
+                    }
                 }
                 showMessage('User updated successfully.');
             } catch (error) {
@@ -260,15 +259,19 @@ const hookUsersAdmin = async () => {
                 !Array.isArray(payload.users) ||
                 !pagination ||
                 !Number.isInteger(pagination.page) ||
-                !Number.isInteger(pagination.total) ||
+                !Number.isInteger(pagination.totalItems) ||
                 !Number.isInteger(pagination.totalPages)
             ) {
                 throw new Error('The users response is invalid.');
             }
 
+            if (page > 1 && page > pagination.totalPages) {
+                return await loadUsers(Math.max(1, pagination.totalPages), search);
+            }
+
             currentPage = pagination.page;
             totalPages = pagination.totalPages;
-            totalUsers = pagination.total;
+            totalUsers = pagination.totalItems;
             currentQuery = search;
             renderUsers(payload.users);
             return true;

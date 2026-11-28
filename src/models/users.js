@@ -51,14 +51,10 @@ const findAllUsers = async () => {
 
 const findUsersPage = async ({ search, page, limit }) => {
     const filter = search ? { $text: { $search: search } } : {};
-    const sort = search
-        ? { score: { $meta: 'textScore' }, _id: 1 }
-        : { _id: 1 };
-
     return User.find(filter)
         .select('-passwordHash')
         .populate('role')
-        .sort(sort)
+        .sort({ username: 1, _id: 1 })
         .skip((page - 1) * limit)
         .limit(limit)
         .exec();
