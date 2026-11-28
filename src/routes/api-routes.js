@@ -489,7 +489,7 @@ router.get("/api/trips/:id/schedules", getSchedulesByTrip);
  * /api/users:
  *   get:
  *     summary: List users visible to the authenticated user
- *     description: Admin results are sorted by username, including search results. Customers receive only their own record on page 1 regardless of the requested page or search. Passwords and password hashes are never returned.
+ *     description: Admin results are sorted by username. Customers receive only their own record on page 1 regardless of valid page, search, or role filters. Passwords and password hashes are never returned.
  *     tags:
  *       - Users
  *     security:
@@ -498,10 +498,17 @@ router.get("/api/trips/:id/schedules", getSchedulesByTrip);
  *       - in: query
  *         name: q
  *         required: false
- *         description: Text search across name, username, and email. Search is applied to admin results; customers still receive only their own record.
+ *         description: Case- and accent-insensitive substring search across name, username, and email. Unquoted terms match any term; double quotes surrounding the entire query match a phrase in one field. Empty quotes mean no search.
  *         schema:
  *           type: string
  *           maxLength: 100
+ *       - in: query
+ *         name: role
+ *         required: false
+ *         description: Filter admin results by role.
+ *         schema:
+ *           type: string
+ *           enum: [admin, customer]
  *       - in: query
  *         name: page
  *         required: false
@@ -527,7 +534,7 @@ router.get("/api/trips/:id/schedules", getSchedulesByTrip);
  *             schema:
  *               $ref: '#/components/schemas/UserListResponse'
  *       400:
- *         description: Invalid search or pagination parameters
+ *         description: Invalid search, role, or pagination parameters
  *         content:
  *           application/json:
  *             schema:

@@ -19,6 +19,10 @@ const userSchema = new mongoose.Schema(
       unique: true, 
       lowercase: true 
     },
+    search: {
+      type: [String],
+      select: false
+    },
     passwordHash: { 
       type: String, 
       required: true 
@@ -31,8 +35,6 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
-userSchema.index({ name: 'text', username: 'text', email: 'text' });
 
 const user = mongoose.model('User', userSchema);
 export default user;

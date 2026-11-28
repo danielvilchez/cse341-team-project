@@ -10,6 +10,7 @@ const hookUsersAdmin = async () => {
     const messageEl = document.getElementById('users-message');
     const searchForm = document.getElementById('users-search-form');
     const searchInput = document.getElementById('users-search-input');
+    const roleFilter = document.getElementById('users-role-filter');
     const toolbarEl = document.getElementById('users-toolbar');
     const cardsButton = document.getElementById('users-cards-button');
     const listButton = document.getElementById('users-list-button');
@@ -41,6 +42,8 @@ const hookUsersAdmin = async () => {
     let totalPages = 0;
     let totalUsers = 0;
     let currentQuery = '';
+    let currentRole = '';
+    let currentRequest = 0;
     let viewMode = canEditRoles ? 'cards' : 'list';
     let pendingDeleteUser = null;
 
@@ -178,8 +181,10 @@ const hookUsersAdmin = async () => {
                 }
 
                 if (canEditRoles && payload.user.id === currentUserId && payload.user.role !== 'admin') {
+                    currentRequest++;
                     canEditRoles = false;
                     currentQuery = '';
+                    currentRole = '';
                     currentPage = 1;
                     if (searchForm) {
                         searchForm.hidden = true;
@@ -189,6 +194,9 @@ const hookUsersAdmin = async () => {
                     }
                     if (searchInput) {
                         searchInput.value = '';
+                    }
+                    if (roleFilter) {
+                        roleFilter.value = '';
                     }
                     users = [payload.user];
                     totalUsers = 1;
@@ -234,7 +242,8 @@ const hookUsersAdmin = async () => {
         setLoadState('loaded');
     }
 
-    const loadUsers = async (page = currentPage, search = currentQuery) => {
+    const loadUsers = async (page = currentPage, search = currentQuery, role = currentRole) => {
+        const requestId = ++currentRequest;
         setLoadState('loading');
         messageEl.hidden = true;
 
@@ -245,14 +254,19 @@ const hookUsersAdmin = async () => {
         if (search) {
             params.set('q', search);
         }
+        if (role) {
+            params.set('role', role);
+        }
 
         try {
             const response = await fetch(`/api/users?${params.toString()}`);
+            if (requestId !== currentRequest) return false;
             if (!response.ok) {
                 throw await responseError(response);
             }
 
             const payload = await response.json();
+            if (requestId !== currentRequest) return false;
             const pagination = payload && payload.pagination;
             if (
                 !payload ||
@@ -266,26 +280,29 @@ const hookUsersAdmin = async () => {
             }
 
             if (page > 1 && page > pagination.totalPages) {
-                return await loadUsers(Math.max(1, pagination.totalPages), search);
+                return await loadUsers(Math.max(1, pagination.totalPages), search, role);
             }
 
             currentPage = pagination.page;
             totalPages = pagination.totalPages;
             totalUsers = pagination.totalItems;
             currentQuery = search;
+            currentRole = role;
             renderUsers(payload.users);
             return true;
         } catch (error) {
+            if (requestId !== currentRequest) return false;
             showError(error);
             setLoadState('error');
             return false;
         }
     };
 
-    if (searchForm && searchInput) {
+    if (searchForm && searchInput && roleFilter) {
         searchForm.addEventListener('submit', async (event) => {
             event.preventDefault();
             currentQuery = searchInput.value.trim();
+            currentRole = roleFilter.value;
             currentPage = 1;
             await loadUsers();
         });

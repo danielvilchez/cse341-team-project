@@ -74,6 +74,12 @@ Vitest starts the temporary database once for the complete test run. Before each
 
 See `tests/trains.test.js` for example endpoint tests that use Supertest to send requests to the real `/api/trains` route.
 
+### User search migration
+
+The user search feature stores normalized name, username, and email in a `search` array. Before enabling the updated application on a database with existing users, stop all application instances and other writers, back up the database, and run `npm run db:migrate-user-search` against the intended database configured in `.env`. The command updates existing user documents, verifies the values, and can be rerun. Deploy the updated application before allowing writes again so new and edited users maintain the array. Direct database inserts or updates must also keep it consistent.
+
+Search requests fail if any user lacks a three-element search array; this prevents incomplete results until the migration is run. Substring searches may scan documents and have not been optimized for large collections.
+
 This project simulates realistic work situations requiring reverse engineering, refactoring, debugging, or feature extension.
 
 ### For Contributors

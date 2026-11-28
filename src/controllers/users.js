@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import {
     countUsers,
+    createUsersFilter,
     findUserPasswordHashById,
     findUserById,
     findUsersPage,
@@ -9,6 +10,7 @@ import {
     verifyPassword
 } from '../models/users.js';
 import { invalidateUserSessions } from '../db/sessions.js';
+import { parseUserSearch } from '../models/user-search.js';
 
 const DEFAULT_PAGE_SIZE = 10;
 const MAX_PAGE_SIZE = 50;
@@ -69,6 +71,7 @@ const getUsersHandler = async (req, res) => {
 
     try {
         const searchValue = req.query.q ?? '';
+        const role = req.query.role;
         const pageValue = req.query.page;
         const limitValue = req.query.limit;
         const page = pageValue === undefined ? 1 : parsePositiveInteger(pageValue);
@@ -79,6 +82,7 @@ const getUsersHandler = async (req, res) => {
         if (
             typeof searchValue !== 'string' ||
             searchValue.length > MAX_SEARCH_LENGTH ||
+            (role !== undefined && !['admin', 'customer'].includes(role)) ||
             page === null ||
             limit === null ||
             limit > MAX_PAGE_SIZE ||
@@ -87,11 +91,15 @@ const getUsersHandler = async (req, res) => {
             return res.status(400).json({ message: 'Invalid user search or pagination parameters.' });
         }
 
-        const search = searchValue.trim();
+        const terms = parseUserSearch(searchValue);
+        if (terms === null) {
+            return res.status(400).json({ message: 'Invalid user search or pagination parameters.' });
+        }
         if (req.user.role === 'admin') {
+            const filter = await createUsersFilter({ terms, role });
             const [users, totalItems] = await Promise.all([
-                findUsersPage({ search, page, limit }),
-                countUsers(search)
+                findUsersPage({ filter, page, limit }),
+                countUsers(filter)
             ]);
 
             return res.status(200).json({
