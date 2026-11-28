@@ -90,6 +90,7 @@ const makeUserCard = (withRole) => {
         '[data-field="username-input"]': new MockElement(),
         '[data-field="email-input"]': new MockElement(),
         '[data-field="password-input"]': new MockElement(),
+        '[data-field="current-password-input"]': new MockElement(),
         'form[data-action="update"]': new MockElement(),
         'button[data-action="edit"]': new MockElement(),
         'button[data-action="delete"]': new MockElement(),
@@ -185,6 +186,7 @@ describe('User administration page', () => {
 
         expect(response.text).toContain('id="users-admin"');
         expect(response.text).toContain('src="/js/users-admin.js"');
+        expect(response.text).toContain('data-field="current-password-input"');
         expect(response.text).toContain('data-view="list"');
         expect(response.text).not.toContain('page-customer@example.com');
         expect(response.text).not.toContain('page-customer User');
@@ -201,6 +203,7 @@ describe('User administration page', () => {
         const response = await (await login(admin)).get('/users-admin').expect(200);
 
         expect(response.text).toContain('id="users-search-form"');
+        expect(response.text).toContain('data-field="current-password-input"');
         expect(response.text).toContain('id="users-role-filter"');
         expect(response.text).toContain('id="users-cards-button"');
         expect(response.text).toContain('id="users-list-button"');
@@ -307,15 +310,43 @@ describe('User administration page', () => {
         await card.fields['button[data-action="edit"]'].listeners.click();
         expect(card.fields['form[data-action="update"]'].hidden).toBe(false);
         card.fields['[data-field="name-input"]'].value = 'Updated Customer';
+        card.fields['[data-field="current-password-input"]'].value = 'TestPassword123';
+        card.fields['[data-field="password-input"]'].value = 'NewPassword123';
         await card.fields['form[data-action="update"]'].listeners.submit({
             preventDefault: () => {}
         });
 
         card = elements['users-list'].children[0];
         expect(updateBody.name).toBe('Updated Customer');
+        expect(updateBody.currentPassword).toBe('TestPassword123');
+        expect(updateBody.password).toBe('NewPassword123');
         expect(updateBody).not.toHaveProperty('role');
         expect(card.fields['[data-field="name"]'].textContent).toBe('Updated Customer');
         expect(elements['users-message'].textContent).toBe('User updated successfully.');
+    });
+
+    test('clears the confirmation password on a failed edit and both passwords on cancel', async () => {
+        const { elements } = await runUsersScript({
+            fetch: async (url) => {
+                if (url.startsWith('/api/users?')) {
+                    return { ok: true, json: async () => usersResponse([customerUser()]) };
+                }
+                return {
+                    ok: false,
+                    status: 403,
+                    json: async () => ({ message: 'Current password is incorrect.' })
+                };
+            }
+        });
+        const card = elements['users-list'].children[0];
+        await card.fields['button[data-action="edit"]'].listeners.click();
+        card.fields['[data-field="current-password-input"]'].value = 'wrong';
+        card.fields['[data-field="password-input"]'].value = 'new-password';
+        await card.fields['form[data-action="update"]'].listeners.submit({ preventDefault: () => {} });
+        expect(elements['users-error-message'].textContent).toBe('Current password is incorrect.');
+        expect(card.fields['[data-field="current-password-input"]'].value).toBe('');
+        await card.fields['button[data-action="cancel-edit"]'].listeners.click();
+        expect(card.fields['[data-field="password-input"]'].value).toBe('');
     });
 
     test('ignores an older search response after filters are submitted again', async () => {
@@ -380,6 +411,7 @@ describe('User administration page', () => {
             await elements['users-next-page'].listeners.click();
             const card = elements['users-list'].children[0];
             if (operation === 'edit') {
+                card.fields['[data-field="current-password-input"]'].value = 'TestPassword123';
                 await card.fields['form[data-action="update"]'].listeners.submit({ preventDefault: () => {} });
             } else {
                 await card.fields['button[data-action="delete"]'].listeners.click();
@@ -415,6 +447,7 @@ describe('User administration page', () => {
 
         const card = elements['users-list'].children[0];
         card.fields['[data-field="role-input"]'].value = 'customer';
+        card.fields['[data-field="current-password-input"]'].value = 'TestPassword123';
         await card.fields['form[data-action="update"]'].listeners.submit({ preventDefault: () => {} });
 
         expect(elements['users-list'].children).toHaveLength(1);

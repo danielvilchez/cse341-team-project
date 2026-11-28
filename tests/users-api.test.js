@@ -184,7 +184,7 @@ describe('User API routes', () => {
         const customer = await createAccount('old-user');
         const agent = await login(admin);
         await agent.put(`/api/users/${customer._id}`)
-            .send({ name: 'Álvaro Novo', username: 'new-user', email: 'new@example.com' })
+            .send({ name: 'Álvaro Novo', username: 'new-user', email: 'new@example.com', currentPassword: password })
             .expect(200);
         for (const q of ['alvaro', 'new-user', 'new@example']) {
             const response = await agent.get('/api/users').query({ q }).expect(200);
@@ -284,11 +284,63 @@ describe('User API routes', () => {
 
         const response = await agent
             .put(`/api/users/${customer._id}`)
-            .send({ name: 'Updated Customer' })
+            .send({ name: 'Updated Customer', currentPassword: password })
             .expect(200);
 
         expect(response.body.user.name).toBe('Updated Customer');
         expect(response.body.user).not.toHaveProperty('passwordHash');
+    });
+
+    test('requires the authenticated user password before updating', async () => {
+        const customer = await createAccount('customer');
+        const agent = await login(customer);
+        for (const body of [
+            { name: 'Updated' },
+            { name: 'Updated', currentPassword: '' },
+            { name: 'Updated', currentPassword: false }
+        ]) {
+            await agent.put(`/api/users/${customer._id}`).send(body).expect(400);
+        }
+        await agent.put(`/api/users/${customer._id}`)
+            .send({ name: 'Updated', currentPassword: 'WrongPassword123' })
+            .expect(403);
+        expect((await findUserById(customer._id.toString())).name).toBe('customer User');
+    });
+
+    test('requires the admin password rather than the target password for an edit', async () => {
+        const admin = await createAccount('admin', 'admin');
+        const customer = await createAccount('customer');
+        const customerWithDifferentPassword = await updateUserById(customer._id.toString(), {
+            password: 'TargetPassword123'
+        });
+        const customerAgent = request.agent(app);
+        await customerAgent.post('/login')
+            .send({ identifier: customer.email, password: 'TargetPassword123' }).expect(302);
+        const agent = await login(admin);
+        await agent.put(`/api/users/${customer._id}`)
+            .send({ role: 'admin', currentPassword: 'TargetPassword123' }).expect(403);
+        expect((await findUserById(customer._id.toString())).role.name).toBe('customer');
+        await customerAgent.get('/api/users').expect(200);
+        const response = await agent.put(`/api/users/${customer._id}`)
+            .send({ name: 'Updated', currentPassword: password }).expect(200);
+        expect(response.body.user.name).toBe('Updated');
+        expect(response.body.user).not.toHaveProperty('currentPassword');
+        expect(customerWithDifferentPassword.passwordHash).toBeUndefined();
+    });
+
+    test('changes a password only after confirming the old password', async () => {
+        const customer = await createAccount('customer');
+        const agent = await login(customer);
+        await agent.put(`/api/users/${customer._id}`)
+            .send({ password: 'NewPassword123', currentPassword: 'WrongPassword123' }).expect(403);
+        const rejectedSession = request.agent(app);
+        await rejectedSession.post('/login')
+            .send({ identifier: customer.email, password: 'NewPassword123' }).expect(401);
+        await agent.put(`/api/users/${customer._id}`)
+            .send({ password: 'NewPassword123', currentPassword: password }).expect(200);
+        const newSession = request.agent(app);
+        await newSession.post('/login')
+            .send({ identifier: customer.email, password: 'NewPassword123' }).expect(302);
     });
 
     test('returns 403 when a customer updates or deletes another account or changes a role', async () => {
@@ -298,12 +350,12 @@ describe('User API routes', () => {
 
         await agent
             .put(`/api/users/${otherUser._id}`)
-            .send({ name: 'Not Allowed' })
+            .send({ name: 'Not Allowed', currentPassword: password })
             .expect(403);
         await agent.delete(`/api/users/${otherUser._id}`).expect(403);
         await agent
             .put(`/api/users/${customer._id}`)
-            .send({ role: 'admin' })
+            .send({ role: 'admin', currentPassword: password })
             .expect(403);
     });
 
@@ -314,7 +366,7 @@ describe('User API routes', () => {
 
         const updateResponse = await agent
             .put(`/api/users/${customer._id}`)
-            .send({ name: 'Updated by Admin' })
+            .send({ name: 'Updated by Admin', currentPassword: password })
             .expect(200);
         expect(updateResponse.body.user.name).toBe('Updated by Admin');
 
@@ -332,7 +384,7 @@ describe('User API routes', () => {
 
         await adminAgent
             .put(`/api/users/${customer._id}`)
-            .send({ role: 'admin' })
+            .send({ role: 'admin', currentPassword: password })
             .expect(200);
 
         await customerAgent.get('/api/users').expect(401);
@@ -380,11 +432,11 @@ describe('User API routes', () => {
             .expect(400);
         await agent
             .put(`/api/users/${admin._id}`)
-            .send({ email: 'not-an-email' })
+            .send({ email: 'not-an-email', currentPassword: password })
             .expect(400);
         await agent
             .put(`/api/users/${admin._id}`)
-            .send({ name: '   ' })
+            .send({ name: '   ', currentPassword: password })
             .expect(400);
     });
 
@@ -398,7 +450,7 @@ describe('User API routes', () => {
 
             await agent
                 .put(`/api/users/${customer._id}`)
-                .send({ [field]: otherUser[field] })
+                .send({ [field]: otherUser[field], currentPassword: password })
                 .expect(409);
         }
     );
@@ -410,7 +462,7 @@ describe('User API routes', () => {
 
         await agent
             .put(`/api/users/${missingUserId}`)
-            .send({ name: 'Missing User' })
+            .send({ name: 'Missing User', currentPassword: password })
             .expect(404);
         await agent
             .delete(`/api/users/${missingUserId}`)

@@ -74,7 +74,7 @@ describe('User API controllers', () => {
             user: { id: user._id.toString(), role: 'customer' },
             params: { userId: user._id.toString() },
             query: {},
-            body: { name: 'Updated Customer' },
+            body: { name: 'Updated Customer', currentPassword: 'InitialPassword123' },
             session: { user: { id: user._id.toString(), name: 'customer User', role: 'customer' } }
         };
         const res = createResponse();
@@ -93,7 +93,7 @@ describe('User API controllers', () => {
             user: { id: user._id.toString(), role: 'customer' },
             params: { userId: user._id.toString() },
             query: {},
-            body: { role: 'admin' }
+            body: { role: 'admin', currentPassword: 'InitialPassword123' }
         };
         const res = createResponse();
 
@@ -109,7 +109,7 @@ describe('User API controllers', () => {
             user: { id: user._id.toString(), role: 'customer' },
             params: { userId: user._id.toString() },
             query: {},
-            body: { name: '  ' }
+            body: { name: '  ', currentPassword: 'InitialPassword123' }
         };
         const res = createResponse();
 
