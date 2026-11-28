@@ -139,6 +139,7 @@ const runUsersScript = async ({ fetch, currentUserId = 'user-1', isAdmin = false
         elements['users-list-button'] = new MockElement();
         elements['users-search-form'] = new MockElement();
         elements['users-search-input'] = new MockElement();
+        elements['users-role-filter'] = new MockElement();
     }
     elements['user-card-template'] = {
         content: {
@@ -188,6 +189,7 @@ describe('User administration page', () => {
         expect(response.text).not.toContain('page-customer@example.com');
         expect(response.text).not.toContain('page-customer User');
         expect(response.text).not.toContain('id="users-search-form"');
+        expect(response.text).not.toContain('id="users-role-filter"');
         expect(response.text).not.toContain('id="users-cards-button"');
         expect(response.text).not.toContain('id="users-list-button"');
         expect(response.text).not.toContain('data-field="role-details"');
@@ -199,6 +201,7 @@ describe('User administration page', () => {
         const response = await (await login(admin)).get('/users-admin').expect(200);
 
         expect(response.text).toContain('id="users-search-form"');
+        expect(response.text).toContain('id="users-role-filter"');
         expect(response.text).toContain('id="users-cards-button"');
         expect(response.text).toContain('id="users-list-button"');
         expect(response.text).toContain('data-field="role-input"');
@@ -262,18 +265,22 @@ describe('User administration page', () => {
         expect(elements['users-list-button'].attributes['aria-pressed']).toBe('true');
 
         elements['users-search-input'].value = 'Ada Lovelace';
+        elements['users-role-filter'].value = 'customer';
         await elements['users-search-form'].listeners.submit({ preventDefault: () => {} });
         expect(requestedUrls[1]).toContain('q=Ada+Lovelace');
+        expect(requestedUrls[1]).toContain('role=customer');
         expect(requestedUrls[1]).toContain('page=1');
 
         await elements['users-next-page'].listeners.click();
         expect(requestedUrls[2]).toContain('page=2');
         expect(requestedUrls[2]).toContain('q=Ada+Lovelace');
+        expect(requestedUrls[2]).toContain('role=customer');
         expect(elements['users-page-status'].textContent).toBe('Page 2 of 2 (30 users)');
         expect(elements['users-next-page'].disabled).toBe(true);
         await elements['users-previous-page'].listeners.click();
         expect(requestedUrls[3]).toContain('page=1');
         expect(requestedUrls[3]).toContain('q=Ada+Lovelace');
+        expect(requestedUrls[3]).toContain('role=customer');
 
         await elements['users-cards-button'].listeners.click();
         expect(elements['users-list'].dataset.view).toBe('cards');
@@ -311,6 +318,34 @@ describe('User administration page', () => {
         expect(elements['users-message'].textContent).toBe('User updated successfully.');
     });
 
+    test('ignores an older search response after filters are submitted again', async () => {
+        let resolveFirst;
+        const { elements } = await runUsersScript({
+            isAdmin: true,
+            fetch: async (url) => {
+                const query = new URL(url, 'http://localhost').searchParams.get('q');
+                if (query === 'first') {
+                    return new Promise((resolve) => { resolveFirst = resolve; });
+                }
+                return {
+                    ok: true,
+                    json: async () => usersResponse([{
+                        ...customerUser(),
+                        name: query || 'Initial'
+                    }])
+                };
+            }
+        });
+        elements['users-search-input'].value = 'first';
+        const first = elements['users-search-form'].listeners.submit({ preventDefault: () => {} });
+        elements['users-search-input'].value = 'second';
+        await elements['users-search-form'].listeners.submit({ preventDefault: () => {} });
+        resolveFirst({ ok: true, json: async () => usersResponse([{ ...customerUser(), name: 'first' }]) });
+        await first;
+        expect(elements['users-list'].children[0].fields['[data-field="name"]'].textContent)
+            .toBe('second');
+    });
+
     test.each(['edit', 'delete'])(
         'preserves search and returns to a valid page after %s removes the last result',
         async (operation) => {
@@ -340,6 +375,7 @@ describe('User administration page', () => {
             });
 
             elements['users-search-input'].value = 'match';
+            elements['users-role-filter'].value = 'customer';
             await elements['users-search-form'].listeners.submit({ preventDefault: () => {} });
             await elements['users-next-page'].listeners.click();
             const card = elements['users-list'].children[0];
@@ -354,6 +390,7 @@ describe('User administration page', () => {
             const finalUrl = requestedUrls[requestedUrls.length - 1];
             expect(finalUrl).toContain('page=1');
             expect(finalUrl).toContain('q=match');
+            expect(finalUrl).toContain('role=customer');
             expect(elements['users-list'].children[0].fields['[data-field="name"]'].textContent)
                 .toBe('Customer User');
             expect(elements['users-error'].hidden).toBe(true);

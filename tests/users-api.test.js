@@ -8,6 +8,8 @@ import {
     updateUserById
 } from '../src/models/users.js';
 import User from '../src/models/schemas/users.js';
+import { getDb } from '../src/db/connect.js';
+import { migrateUserSearch } from '../src/db/user-search-migration.js';
 
 const password = 'TestPassword123';
 
@@ -144,6 +146,81 @@ describe('User API routes', () => {
         }
         await agent.get('/api/users?limit=50').expect(200);
         await agent.get(`/api/users?q=${'a'.repeat(101)}`).expect(400);
+    });
+
+    test('combines literal substring search, phrases, role and filtered pagination', async () => {
+        const admin = await createAccount('search-admin', 'admin');
+        await createUser('João Silva', 'luna-star', 'luna+test@example.com', password);
+        await createUser('Jose\u0301 Santos', 'jose', 'jose@example.com', password);
+        const agent = await login(admin);
+        const check = async (q, expected) => {
+            const response = await agent.get('/api/users').query({ q }).expect(200);
+            expect(response.body.users.map((user) => user.username)).toEqual(expected);
+            expect(response.body.pagination.totalItems).toBe(expected.length);
+            expect(response.body.users.every((user) => !('search' in user))).toBe(true);
+        };
+        await check('JOAO', ['luna-star']);
+        await check('SAN', ['jose']);
+        await check('star', ['luna-star']);
+        await check('+test@', ['luna-star']);
+        await check('missing sil', ['luna-star']);
+        await check('"joao silva"', ['luna-star']);
+        await check('"silva luna"', []);
+        await check('$literal', []);
+        await check('not-found', []);
+
+        const filtered = await agent.get('/api/users')
+            .query({ q: 'a', role: 'customer', page: 2, limit: 1 }).expect(200);
+        expect(filtered.body.users.map((user) => user.username)).toEqual(['luna-star']);
+        expect(filtered.body.pagination).toMatchObject({ page: 2, totalItems: 2, totalPages: 2 });
+        const admins = await agent.get('/api/users').query({ role: 'admin' }).expect(200);
+        expect(admins.body.users.map((user) => user.username)).toEqual(['search-admin']);
+        const emptyQuotes = await agent.get('/api/users').query({ q: '""' }).expect(200);
+        expect(emptyQuotes.body.pagination.totalItems).toBe(3);
+    });
+
+    test('searches updated fields and no longer matches their old values', async () => {
+        const admin = await createAccount('admin', 'admin');
+        const customer = await createAccount('old-user');
+        const agent = await login(admin);
+        await agent.put(`/api/users/${customer._id}`)
+            .send({ name: 'Álvaro Novo', username: 'new-user', email: 'new@example.com' })
+            .expect(200);
+        for (const q of ['alvaro', 'new-user', 'new@example']) {
+            const response = await agent.get('/api/users').query({ q }).expect(200);
+            expect(response.body.users.map((user) => user.username)).toEqual(['new-user']);
+        }
+        const old = await agent.get('/api/users').query({ q: 'old-user' }).expect(200);
+        expect(old.body.users).toEqual([]);
+    });
+
+    test('validates role and quote syntax while preserving customer visibility', async () => {
+        const customer = await createAccount('customer');
+        const admin = await createAccount('admin', 'admin');
+        const agent = await login(admin);
+        for (const query of [
+            'role=owner', 'role=admin&role=customer',
+            'q=%22unfinished', 'q=outside%20%22phrase%22', 'q=%22one%22%22two%22'
+        ]) {
+            await agent.get(`/api/users?${query}`).expect(400);
+        }
+        const ownAgent = await login(customer);
+        const own = await ownAgent.get('/api/users')
+            .query({ q: 'not-found', role: 'admin', page: 2 }).expect(200);
+        expect(own.body.users.map((user) => user.id)).toEqual([customer._id.toString()]);
+        await ownAgent.get('/api/users?role=invalid').expect(400);
+    });
+
+    test('fails explicitly when existing users have not been migrated', async () => {
+        const admin = await createAccount('admin', 'admin');
+        const user = await createAccount('legacy');
+        await User.collection.updateOne({ _id: user._id }, { $unset: { search: '' } });
+        const agent = await login(admin);
+        await agent.get('/api/users?q=legacy').expect(500);
+        await agent.get('/api/users').expect(200);
+        expect(await migrateUserSearch(getDb())).toBe(1);
+        const migrated = await agent.get('/api/users?q=legacy').expect(200);
+        expect(migrated.body.users.map((item) => item.username)).toEqual(['legacy']);
     });
 
     test('orders and paginates users by username with complete metadata', async () => {
