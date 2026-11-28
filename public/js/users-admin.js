@@ -112,6 +112,7 @@ const hookUsersAdmin = async () => {
         const usernameInput = card.querySelector('[data-field="username-input"]');
         const emailInput = card.querySelector('[data-field="email-input"]');
         const passwordInput = card.querySelector('[data-field="password-input"]');
+        const currentPasswordInput = card.querySelector('[data-field="current-password-input"]');
         const roleInput = card.querySelector('[data-field="role-input"]');
         const roleControl = card.querySelector('[data-field="role-control"]');
         const form = card.querySelector('form[data-action="update"]');
@@ -146,6 +147,8 @@ const hookUsersAdmin = async () => {
         });
 
         cancelEditButton.addEventListener('click', () => {
+            currentPasswordInput.value = '';
+            passwordInput.value = '';
             form.hidden = true;
             detailsEl.hidden = false;
             actionsEl.hidden = false;
@@ -153,10 +156,16 @@ const hookUsersAdmin = async () => {
 
         form.addEventListener('submit', async (event) => {
             event.preventDefault();
+            if (!currentPasswordInput.value) {
+                showError(new Error('Current password is required.'));
+                currentPasswordInput.focus();
+                return;
+            }
             const updates = {
                 name: nameInput.value,
                 username: usernameInput.value,
-                email: emailInput.value
+                email: emailInput.value,
+                currentPassword: currentPasswordInput.value
             };
             if (passwordInput.value) {
                 updates.password = passwordInput.value;
@@ -210,6 +219,8 @@ const hookUsersAdmin = async () => {
                 showMessage('User updated successfully.');
             } catch (error) {
                 showError(error);
+            } finally {
+                currentPasswordInput.value = '';
             }
         });
 

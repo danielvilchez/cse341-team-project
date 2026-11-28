@@ -102,6 +102,11 @@
                 <input data-field="password-input" name="password" type="password"
                     autocomplete="new-password">
             </label>
+            <label>
+                Your current password (required to confirm changes)
+                <input data-field="current-password-input" name="currentPassword" type="password"
+                    autocomplete="current-password" required>
+            </label>
             <% if (isAdmin) { %>
                 <label data-field="role-control">
                     Role

@@ -141,7 +141,7 @@ const updateUserHandler = async (req, res) => {
         return res.status(400).json({ message: 'Invalid user data.' });
     }
 
-    const allowedFields = ['name', 'username', 'email', 'password', 'role'];
+    const allowedFields = ['name', 'username', 'email', 'password', 'role', 'currentPassword'];
     if (Object.keys(updates).some((field) => !allowedFields.includes(field))) {
         return res.status(400).json({ message: 'Invalid user data.' });
     }
@@ -151,6 +151,10 @@ const updateUserHandler = async (req, res) => {
         req.user.role !== 'admin'
     ) {
         return res.status(403).json({ message: 'Forbidden' });
+    }
+
+    if (typeof updates.currentPassword !== 'string' || !updates.currentPassword) {
+        return res.status(400).json({ message: 'Current password is required.' });
     }
 
     const normalizedUpdates = {};
@@ -189,6 +193,16 @@ const updateUserHandler = async (req, res) => {
     }
 
     try {
+        const passwordHash = await findUserPasswordHashById(req.user.id);
+        if (!passwordHash) {
+            return res.status(401).json({ message: 'Authentication required' });
+        }
+
+        const passwordMatches = await verifyPassword(updates.currentPassword, passwordHash);
+        if (!passwordMatches) {
+            return res.status(403).json({ message: 'Current password is incorrect.' });
+        }
+
         const roleIsBeingChanged = Object.prototype.hasOwnProperty.call(
             normalizedUpdates,
             'role'

@@ -184,8 +184,16 @@ const router = Router();
  *     UserUpdateRequest:
  *       type: object
  *       additionalProperties: false
- *       description: Partial update. Omitted fields remain unchanged; an empty object is allowed.
+ *       description: Partial update. Omitted fields remain unchanged; currentPassword is always required.
+ *       required:
+ *         - currentPassword
  *       properties:
+ *         currentPassword:
+ *           type: string
+ *           format: password
+ *           minLength: 1
+ *           writeOnly: true
+ *           description: Current password of the authenticated user, required to confirm changes.
  *         name:
  *           type: string
  *           minLength: 1
@@ -571,7 +579,7 @@ router.get("/api/users", requireApiLogin, getUsersHandler);
  * /api/users/{userId}:
  *   put:
  *     summary: Partially update a user
- *     description: Customers may update their own account; admins may update any account. Only admins may change a role. Passwords and password hashes are never returned.
+ *     description: Customers may update their own account; admins may update any account. Every update requires the authenticated user's current password. Only admins may change a role. Passwords and password hashes are never returned.
  *     tags:
  *       - Users
  *     security:
@@ -598,7 +606,7 @@ router.get("/api/users", requireApiLogin, getUsersHandler);
  *             schema:
  *               $ref: '#/components/schemas/UserResponse'
  *       400:
- *         description: Invalid user ID or update data
+ *         description: Invalid user ID or update data, or missing current password
  *         content:
  *           application/json:
  *             schema:
@@ -610,7 +618,7 @@ router.get("/api/users", requireApiLogin, getUsersHandler);
  *             schema:
  *               $ref: '#/components/schemas/UserError'
  *       403:
- *         description: Customer attempted to update another user or change a role
+ *         description: Incorrect current password, or customer attempted to update another user or change a role
  *         content:
  *           application/json:
  *             schema:
