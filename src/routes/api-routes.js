@@ -157,17 +157,23 @@ const router = Router();
  *           required:
  *             - page
  *             - limit
- *             - total
+ *             - totalItems
  *             - totalPages
+ *             - hasNextPage
+ *             - hasPreviousPage
  *           properties:
  *             page:
  *               type: integer
  *             limit:
  *               type: integer
- *             total:
+ *             totalItems:
  *               type: integer
  *             totalPages:
  *               type: integer
+ *             hasNextPage:
+ *               type: boolean
+ *             hasPreviousPage:
+ *               type: boolean
  *     UserResponse:
  *       type: object
  *       required:
@@ -178,8 +184,16 @@ const router = Router();
  *     UserUpdateRequest:
  *       type: object
  *       additionalProperties: false
- *       description: Partial update. Omitted fields remain unchanged; an empty object is allowed.
+ *       description: Partial update. Omitted fields remain unchanged; currentPassword is always required.
+ *       required:
+ *         - currentPassword
  *       properties:
+ *         currentPassword:
+ *           type: string
+ *           format: password
+ *           minLength: 1
+ *           writeOnly: true
+ *           description: Current password of the authenticated user, required to confirm changes.
  *         name:
  *           type: string
  *           minLength: 1
@@ -483,7 +497,7 @@ router.get("/api/trips/:id/schedules", getSchedulesByTrip);
  * /api/users:
  *   get:
  *     summary: List users visible to the authenticated user
- *     description: Admins receive all users. Customers receive only their own user record. Passwords and password hashes are never returned.
+ *     description: Admin results are sorted by username. Customers receive only their own record on page 1 regardless of valid page, search, or role filters. Passwords and password hashes are never returned.
  *     tags:
  *       - Users
  *     security:
@@ -492,10 +506,17 @@ router.get("/api/trips/:id/schedules", getSchedulesByTrip);
  *       - in: query
  *         name: q
  *         required: false
- *         description: Text search across name, username, and email. Search is applied to admin results; customers still receive only their own record.
+ *         description: Case- and accent-insensitive substring search across name, username, and email. Unquoted terms match any term; double quotes surrounding the entire query match a phrase in one field. Empty quotes mean no search.
  *         schema:
  *           type: string
  *           maxLength: 100
+ *       - in: query
+ *         name: role
+ *         required: false
+ *         description: Filter admin results by role.
+ *         schema:
+ *           type: string
+ *           enum: [admin, customer]
  *       - in: query
  *         name: page
  *         required: false
@@ -503,14 +524,16 @@ router.get("/api/trips/:id/schedules", getSchedulesByTrip);
  *         schema:
  *           type: integer
  *           minimum: 1
+ *           default: 1
  *       - in: query
  *         name: limit
  *         required: false
- *         description: Page size; defaults to 25 and cannot exceed 100.
+ *         description: Page size; defaults to 10 and cannot exceed 50.
  *         schema:
  *           type: integer
  *           minimum: 1
- *           maximum: 100
+ *           maximum: 50
+ *           default: 10
  *     responses:
  *       200:
  *         description: Safe user records and pagination metadata
@@ -519,7 +542,7 @@ router.get("/api/trips/:id/schedules", getSchedulesByTrip);
  *             schema:
  *               $ref: '#/components/schemas/UserListResponse'
  *       400:
- *         description: Invalid search or pagination parameters
+ *         description: Invalid search, role, or pagination parameters
  *         content:
  *           application/json:
  *             schema:
@@ -556,7 +579,7 @@ router.get("/api/users", requireApiLogin, getUsersHandler);
  * /api/users/{userId}:
  *   put:
  *     summary: Partially update a user
- *     description: Customers may update their own account; admins may update any account. Only admins may change a role. Passwords and password hashes are never returned.
+ *     description: Customers may update their own account; admins may update any account. Every update requires the authenticated user's current password. Only admins may change a role. Passwords and password hashes are never returned.
  *     tags:
  *       - Users
  *     security:
@@ -583,7 +606,7 @@ router.get("/api/users", requireApiLogin, getUsersHandler);
  *             schema:
  *               $ref: '#/components/schemas/UserResponse'
  *       400:
- *         description: Invalid user ID or update data
+ *         description: Invalid user ID or update data, or missing current password
  *         content:
  *           application/json:
  *             schema:
@@ -595,7 +618,7 @@ router.get("/api/users", requireApiLogin, getUsersHandler);
  *             schema:
  *               $ref: '#/components/schemas/UserError'
  *       403:
- *         description: Customer attempted to update another user or change a role
+ *         description: Incorrect current password, or customer attempted to update another user or change a role
  *         content:
  *           application/json:
  *             schema:

@@ -46,13 +46,13 @@
     }
 
     button img {
-        width: 1rem;
-        height: 1rem;
+        width: 1.25rem;
+        height: 1.25rem;
     }
 
     .users-search {
         display: flex;
-        max-width: 36rem;
+        max-width: 44rem;
         margin-block: var(--space-lg);
         border: 1px solid #b7c4e8;
         border-radius: var(--radius-md);
@@ -66,10 +66,23 @@
             background: transparent;
         }
 
+        select {
+            flex: 0 0 14rem;
+            padding: 0 3rem 0 1rem;
+            border: 0;
+            border-left: 1px solid #b7c4e8;
+            background: #fff;
+        }
+
         button {
             border: 0;
             border-radius: 0 var(--radius-md) var(--radius-md) 0;
             background: #eef3ff;
+
+            img {
+                width: 1.5rem;
+                height: 1.5rem;
+            }
         }
     }
 

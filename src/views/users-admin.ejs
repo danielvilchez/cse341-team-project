@@ -15,6 +15,12 @@
             </label>
             <input id="users-search-input" type="search" autocomplete="off"
                 placeholder="Search users...">
+            <label class="visually-hidden" for="users-role-filter">Filter users by role</label>
+            <select id="users-role-filter">
+                <option value="">All roles</option>
+                <option value="admin">Admin</option>
+                <option value="customer">Customer</option>
+            </select>
             <button type="submit" aria-label="Search users">
                 <img src="/images/icons/search.svg" alt="" aria-hidden="true">
             </button>
@@ -95,6 +101,11 @@
                 New password (leave blank to keep current password)
                 <input data-field="password-input" name="password" type="password"
                     autocomplete="new-password">
+            </label>
+            <label>
+                Your current password (required to confirm changes)
+                <input data-field="current-password-input" name="currentPassword" type="password"
+                    autocomplete="current-password" required>
             </label>
             <% if (isAdmin) { %>
                 <label data-field="role-control">

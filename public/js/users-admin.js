@@ -10,6 +10,7 @@ const hookUsersAdmin = async () => {
     const messageEl = document.getElementById('users-message');
     const searchForm = document.getElementById('users-search-form');
     const searchInput = document.getElementById('users-search-input');
+    const roleFilter = document.getElementById('users-role-filter');
     const toolbarEl = document.getElementById('users-toolbar');
     const cardsButton = document.getElementById('users-cards-button');
     const listButton = document.getElementById('users-list-button');
@@ -33,7 +34,7 @@ const hookUsersAdmin = async () => {
         return;
     }
 
-    const PAGE_SIZE = 25;
+    const PAGE_SIZE = 10;
     const currentUserId = rootEl.dataset.currentUserId;
     let canEditRoles = rootEl.dataset.canEditRoles === 'true';
     let users = [];
@@ -41,6 +42,8 @@ const hookUsersAdmin = async () => {
     let totalPages = 0;
     let totalUsers = 0;
     let currentQuery = '';
+    let currentRole = '';
+    let currentRequest = 0;
     let viewMode = canEditRoles ? 'cards' : 'list';
     let pendingDeleteUser = null;
 
@@ -109,6 +112,7 @@ const hookUsersAdmin = async () => {
         const usernameInput = card.querySelector('[data-field="username-input"]');
         const emailInput = card.querySelector('[data-field="email-input"]');
         const passwordInput = card.querySelector('[data-field="password-input"]');
+        const currentPasswordInput = card.querySelector('[data-field="current-password-input"]');
         const roleInput = card.querySelector('[data-field="role-input"]');
         const roleControl = card.querySelector('[data-field="role-control"]');
         const form = card.querySelector('form[data-action="update"]');
@@ -143,6 +147,8 @@ const hookUsersAdmin = async () => {
         });
 
         cancelEditButton.addEventListener('click', () => {
+            currentPasswordInput.value = '';
+            passwordInput.value = '';
             form.hidden = true;
             detailsEl.hidden = false;
             actionsEl.hidden = false;
@@ -150,10 +156,16 @@ const hookUsersAdmin = async () => {
 
         form.addEventListener('submit', async (event) => {
             event.preventDefault();
+            if (!currentPasswordInput.value) {
+                showError(new Error('Current password is required.'));
+                currentPasswordInput.focus();
+                return;
+            }
             const updates = {
                 name: nameInput.value,
                 username: usernameInput.value,
-                email: emailInput.value
+                email: emailInput.value,
+                currentPassword: currentPasswordInput.value
             };
             if (passwordInput.value) {
                 updates.password = passwordInput.value;
@@ -177,9 +189,11 @@ const hookUsersAdmin = async () => {
                     throw new Error('The updated user response is invalid.');
                 }
 
-                if (payload.user.id === currentUserId && payload.user.role !== 'admin') {
+                if (canEditRoles && payload.user.id === currentUserId && payload.user.role !== 'admin') {
+                    currentRequest++;
                     canEditRoles = false;
                     currentQuery = '';
+                    currentRole = '';
                     currentPage = 1;
                     if (searchForm) {
                         searchForm.hidden = true;
@@ -190,19 +204,23 @@ const hookUsersAdmin = async () => {
                     if (searchInput) {
                         searchInput.value = '';
                     }
+                    if (roleFilter) {
+                        roleFilter.value = '';
+                    }
                     users = [payload.user];
                     totalUsers = 1;
                     totalPages = 1;
                     renderUsers(users);
                 } else {
-                    users = users.map((listedUser) => (
-                        listedUser.id === payload.user.id ? payload.user : listedUser
-                    ));
-                    renderUsers(users);
+                    if (!await loadUsers()) {
+                        return;
+                    }
                 }
                 showMessage('User updated successfully.');
             } catch (error) {
                 showError(error);
+            } finally {
+                currentPasswordInput.value = '';
             }
         });
 
@@ -235,7 +253,8 @@ const hookUsersAdmin = async () => {
         setLoadState('loaded');
     }
 
-    const loadUsers = async (page = currentPage, search = currentQuery) => {
+    const loadUsers = async (page = currentPage, search = currentQuery, role = currentRole) => {
+        const requestId = ++currentRequest;
         setLoadState('loading');
         messageEl.hidden = true;
 
@@ -246,43 +265,55 @@ const hookUsersAdmin = async () => {
         if (search) {
             params.set('q', search);
         }
+        if (role) {
+            params.set('role', role);
+        }
 
         try {
             const response = await fetch(`/api/users?${params.toString()}`);
+            if (requestId !== currentRequest) return false;
             if (!response.ok) {
                 throw await responseError(response);
             }
 
             const payload = await response.json();
+            if (requestId !== currentRequest) return false;
             const pagination = payload && payload.pagination;
             if (
                 !payload ||
                 !Array.isArray(payload.users) ||
                 !pagination ||
                 !Number.isInteger(pagination.page) ||
-                !Number.isInteger(pagination.total) ||
+                !Number.isInteger(pagination.totalItems) ||
                 !Number.isInteger(pagination.totalPages)
             ) {
                 throw new Error('The users response is invalid.');
             }
 
+            if (page > 1 && page > pagination.totalPages) {
+                return await loadUsers(Math.max(1, pagination.totalPages), search, role);
+            }
+
             currentPage = pagination.page;
             totalPages = pagination.totalPages;
-            totalUsers = pagination.total;
+            totalUsers = pagination.totalItems;
             currentQuery = search;
+            currentRole = role;
             renderUsers(payload.users);
             return true;
         } catch (error) {
+            if (requestId !== currentRequest) return false;
             showError(error);
             setLoadState('error');
             return false;
         }
     };
 
-    if (searchForm && searchInput) {
+    if (searchForm && searchInput && roleFilter) {
         searchForm.addEventListener('submit', async (event) => {
             event.preventDefault();
             currentQuery = searchInput.value.trim();
+            currentRole = roleFilter.value;
             currentPage = 1;
             await loadUsers();
         });

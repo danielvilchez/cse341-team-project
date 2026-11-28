@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import {
     countUsers,
+    createUsersFilter,
     findUserPasswordHashById,
     findUserById,
     findUsersPage,
@@ -9,9 +10,10 @@ import {
     verifyPassword
 } from '../models/users.js';
 import { invalidateUserSessions } from '../db/sessions.js';
+import { parseUserSearch } from '../models/user-search.js';
 
-const DEFAULT_PAGE_SIZE = 25;
-const MAX_PAGE_SIZE = 100;
+const DEFAULT_PAGE_SIZE = 10;
+const MAX_PAGE_SIZE = 50;
 const MAX_SEARCH_LENGTH = 100;
 
 const toSafeUser = (user) => ({
@@ -29,6 +31,18 @@ const parsePositiveInteger = (value) => {
 
     const parsed = Number(value);
     return Number.isSafeInteger(parsed) ? parsed : null;
+};
+
+const paginationMetadata = (page, limit, totalItems) => {
+    const totalPages = Math.ceil(totalItems / limit);
+    return {
+        page,
+        limit,
+        totalItems,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1
+    };
 };
 
 const handleUserError = (error, res, operation) => {
@@ -57,6 +71,7 @@ const getUsersHandler = async (req, res) => {
 
     try {
         const searchValue = req.query.q ?? '';
+        const role = req.query.role;
         const pageValue = req.query.page;
         const limitValue = req.query.limit;
         const page = pageValue === undefined ? 1 : parsePositiveInteger(pageValue);
@@ -67,6 +82,7 @@ const getUsersHandler = async (req, res) => {
         if (
             typeof searchValue !== 'string' ||
             searchValue.length > MAX_SEARCH_LENGTH ||
+            (role !== undefined && !['admin', 'customer'].includes(role)) ||
             page === null ||
             limit === null ||
             limit > MAX_PAGE_SIZE ||
@@ -75,17 +91,20 @@ const getUsersHandler = async (req, res) => {
             return res.status(400).json({ message: 'Invalid user search or pagination parameters.' });
         }
 
-        const search = searchValue.trim();
+        const terms = parseUserSearch(searchValue);
+        if (terms === null) {
+            return res.status(400).json({ message: 'Invalid user search or pagination parameters.' });
+        }
         if (req.user.role === 'admin') {
-            const [users, total] = await Promise.all([
-                findUsersPage({ search, page, limit }),
-                countUsers(search)
+            const filter = await createUsersFilter({ terms, role });
+            const [users, totalItems] = await Promise.all([
+                findUsersPage({ filter, page, limit }),
+                countUsers(filter)
             ]);
-            const totalPages = Math.ceil(total / limit);
 
             return res.status(200).json({
                 users: users.map(toSafeUser),
-                pagination: { page, limit, total, totalPages }
+                pagination: paginationMetadata(page, limit, totalItems)
             });
         }
 
@@ -97,7 +116,7 @@ const getUsersHandler = async (req, res) => {
 
             return res.status(200).json({
                 users: [toSafeUser(user)],
-                pagination: { page: 1, limit, total: 1, totalPages: 1 }
+                pagination: paginationMetadata(1, limit, 1)
             });
         }
 
@@ -122,7 +141,7 @@ const updateUserHandler = async (req, res) => {
         return res.status(400).json({ message: 'Invalid user data.' });
     }
 
-    const allowedFields = ['name', 'username', 'email', 'password', 'role'];
+    const allowedFields = ['name', 'username', 'email', 'password', 'role', 'currentPassword'];
     if (Object.keys(updates).some((field) => !allowedFields.includes(field))) {
         return res.status(400).json({ message: 'Invalid user data.' });
     }
@@ -132,6 +151,10 @@ const updateUserHandler = async (req, res) => {
         req.user.role !== 'admin'
     ) {
         return res.status(403).json({ message: 'Forbidden' });
+    }
+
+    if (typeof updates.currentPassword !== 'string' || !updates.currentPassword) {
+        return res.status(400).json({ message: 'Current password is required.' });
     }
 
     const normalizedUpdates = {};
@@ -170,6 +193,16 @@ const updateUserHandler = async (req, res) => {
     }
 
     try {
+        const passwordHash = await findUserPasswordHashById(req.user.id);
+        if (!passwordHash) {
+            return res.status(401).json({ message: 'Authentication required' });
+        }
+
+        const passwordMatches = await verifyPassword(updates.currentPassword, passwordHash);
+        if (!passwordMatches) {
+            return res.status(403).json({ message: 'Current password is incorrect.' });
+        }
+
         const roleIsBeingChanged = Object.prototype.hasOwnProperty.call(
             normalizedUpdates,
             'role'

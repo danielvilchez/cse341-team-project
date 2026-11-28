@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import User from '../src/models/schemas/users.js';
+import { getDb } from '../src/db/connect.js';
+import { migrateUserSearch } from '../src/db/user-search-migration.js';
 import {
     createUser,
     deleteUserById,
@@ -60,6 +62,27 @@ describe('User model', () => {
         });
         expect(updatedUser.role.name).toBe('customer');
         expect(updatedUser.passwordHash).toBeUndefined();
+    });
+
+    test('keeps normalized search values aligned across concurrent partial updates', async () => {
+        const user = await createTestUser();
+        await Promise.all([
+            updateUserById(user._id.toString(), { name: 'João Silva' }),
+            updateUserById(user._id.toString(), { email: 'new@example.com' })
+        ]);
+        const stored = await User.collection.findOne({ _id: user._id });
+        expect(stored.search).toEqual(['joao silva', 'testuser', 'new@example.com']);
+    });
+
+    test('migrates existing search data idempotently and repairs stale entries', async () => {
+        const user = await createTestUser();
+        await User.collection.updateOne({ _id: user._id }, { $unset: { search: '' } });
+        expect(await migrateUserSearch(getDb())).toBe(1);
+        expect((await User.collection.findOne({ _id: user._id })).search)
+            .toEqual(['test user', 'testuser', 'test@example.com']);
+        expect(await migrateUserSearch(getDb())).toBe(0);
+        await User.collection.updateOne({ _id: user._id }, { $set: { search: ['stale'] } });
+        expect(await migrateUserSearch(getDb())).toBe(1);
     });
 
     test('hashes a new password instead of storing it as plain text', async () => {

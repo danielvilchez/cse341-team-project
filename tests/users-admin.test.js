@@ -30,7 +30,10 @@ const login = async (user) => {
 
 const usersResponse = (users, total = users.length, page = 1, totalPages = (total ? 1 : 0)) => ({
     users,
-    pagination: { page, limit: 25, total, totalPages }
+    pagination: {
+        page, limit: 10, totalItems: total, totalPages,
+        hasNextPage: page < totalPages, hasPreviousPage: page > 1
+    }
 });
 
 class MockElement {
@@ -87,6 +90,7 @@ const makeUserCard = (withRole) => {
         '[data-field="username-input"]': new MockElement(),
         '[data-field="email-input"]': new MockElement(),
         '[data-field="password-input"]': new MockElement(),
+        '[data-field="current-password-input"]': new MockElement(),
         'form[data-action="update"]': new MockElement(),
         'button[data-action="edit"]': new MockElement(),
         'button[data-action="delete"]': new MockElement(),
@@ -136,6 +140,7 @@ const runUsersScript = async ({ fetch, currentUserId = 'user-1', isAdmin = false
         elements['users-list-button'] = new MockElement();
         elements['users-search-form'] = new MockElement();
         elements['users-search-input'] = new MockElement();
+        elements['users-role-filter'] = new MockElement();
     }
     elements['user-card-template'] = {
         content: {
@@ -181,10 +186,12 @@ describe('User administration page', () => {
 
         expect(response.text).toContain('id="users-admin"');
         expect(response.text).toContain('src="/js/users-admin.js"');
+        expect(response.text).toContain('data-field="current-password-input"');
         expect(response.text).toContain('data-view="list"');
         expect(response.text).not.toContain('page-customer@example.com');
         expect(response.text).not.toContain('page-customer User');
         expect(response.text).not.toContain('id="users-search-form"');
+        expect(response.text).not.toContain('id="users-role-filter"');
         expect(response.text).not.toContain('id="users-cards-button"');
         expect(response.text).not.toContain('id="users-list-button"');
         expect(response.text).not.toContain('data-field="role-details"');
@@ -196,6 +203,8 @@ describe('User administration page', () => {
         const response = await (await login(admin)).get('/users-admin').expect(200);
 
         expect(response.text).toContain('id="users-search-form"');
+        expect(response.text).toContain('data-field="current-password-input"');
+        expect(response.text).toContain('id="users-role-filter"');
         expect(response.text).toContain('id="users-cards-button"');
         expect(response.text).toContain('id="users-list-button"');
         expect(response.text).toContain('data-field="role-input"');
@@ -253,24 +262,35 @@ describe('User administration page', () => {
         });
 
         await elements['users-list-button'].listeners.click();
+        expect(requestedUrls[0]).toContain('limit=10');
+        expect(elements['users-previous-page'].disabled).toBe(true);
         expect(elements['users-list'].dataset.view).toBe('list');
         expect(elements['users-list-button'].attributes['aria-pressed']).toBe('true');
 
         elements['users-search-input'].value = 'Ada Lovelace';
+        elements['users-role-filter'].value = 'customer';
         await elements['users-search-form'].listeners.submit({ preventDefault: () => {} });
         expect(requestedUrls[1]).toContain('q=Ada+Lovelace');
+        expect(requestedUrls[1]).toContain('role=customer');
         expect(requestedUrls[1]).toContain('page=1');
 
         await elements['users-next-page'].listeners.click();
         expect(requestedUrls[2]).toContain('page=2');
+        expect(requestedUrls[2]).toContain('q=Ada+Lovelace');
+        expect(requestedUrls[2]).toContain('role=customer');
         expect(elements['users-page-status'].textContent).toBe('Page 2 of 2 (30 users)');
+        expect(elements['users-next-page'].disabled).toBe(true);
+        await elements['users-previous-page'].listeners.click();
+        expect(requestedUrls[3]).toContain('page=1');
+        expect(requestedUrls[3]).toContain('q=Ada+Lovelace');
+        expect(requestedUrls[3]).toContain('role=customer');
 
         await elements['users-cards-button'].listeners.click();
         expect(elements['users-list'].dataset.view).toBe('cards');
     });
 
     test('edits users without reloading the document', async () => {
-        const user = customerUser();
+        let user = customerUser();
         let updateBody;
         const { elements } = await runUsersScript({
             fetch: async (url, options) => {
@@ -278,9 +298,10 @@ describe('User administration page', () => {
                     return { ok: true, json: async () => usersResponse([user]) };
                 }
                 updateBody = JSON.parse(options.body);
+                user = { ...user, name: 'Updated Customer' };
                 return {
                     ok: true,
-                    json: async () => ({ user: { ...user, name: 'Updated Customer' } })
+                    json: async () => ({ user })
                 };
             }
         });
@@ -289,15 +310,151 @@ describe('User administration page', () => {
         await card.fields['button[data-action="edit"]'].listeners.click();
         expect(card.fields['form[data-action="update"]'].hidden).toBe(false);
         card.fields['[data-field="name-input"]'].value = 'Updated Customer';
+        card.fields['[data-field="current-password-input"]'].value = 'TestPassword123';
+        card.fields['[data-field="password-input"]'].value = 'NewPassword123';
         await card.fields['form[data-action="update"]'].listeners.submit({
             preventDefault: () => {}
         });
 
         card = elements['users-list'].children[0];
         expect(updateBody.name).toBe('Updated Customer');
+        expect(updateBody.currentPassword).toBe('TestPassword123');
+        expect(updateBody.password).toBe('NewPassword123');
         expect(updateBody).not.toHaveProperty('role');
         expect(card.fields['[data-field="name"]'].textContent).toBe('Updated Customer');
         expect(elements['users-message'].textContent).toBe('User updated successfully.');
+    });
+
+    test('clears the confirmation password on a failed edit and both passwords on cancel', async () => {
+        const { elements } = await runUsersScript({
+            fetch: async (url) => {
+                if (url.startsWith('/api/users?')) {
+                    return { ok: true, json: async () => usersResponse([customerUser()]) };
+                }
+                return {
+                    ok: false,
+                    status: 403,
+                    json: async () => ({ message: 'Current password is incorrect.' })
+                };
+            }
+        });
+        const card = elements['users-list'].children[0];
+        await card.fields['button[data-action="edit"]'].listeners.click();
+        card.fields['[data-field="current-password-input"]'].value = 'wrong';
+        card.fields['[data-field="password-input"]'].value = 'new-password';
+        await card.fields['form[data-action="update"]'].listeners.submit({ preventDefault: () => {} });
+        expect(elements['users-error-message'].textContent).toBe('Current password is incorrect.');
+        expect(card.fields['[data-field="current-password-input"]'].value).toBe('');
+        await card.fields['button[data-action="cancel-edit"]'].listeners.click();
+        expect(card.fields['[data-field="password-input"]'].value).toBe('');
+    });
+
+    test('ignores an older search response after filters are submitted again', async () => {
+        let resolveFirst;
+        const { elements } = await runUsersScript({
+            isAdmin: true,
+            fetch: async (url) => {
+                const query = new URL(url, 'http://localhost').searchParams.get('q');
+                if (query === 'first') {
+                    return new Promise((resolve) => { resolveFirst = resolve; });
+                }
+                return {
+                    ok: true,
+                    json: async () => usersResponse([{
+                        ...customerUser(),
+                        name: query || 'Initial'
+                    }])
+                };
+            }
+        });
+        elements['users-search-input'].value = 'first';
+        const first = elements['users-search-form'].listeners.submit({ preventDefault: () => {} });
+        elements['users-search-input'].value = 'second';
+        await elements['users-search-form'].listeners.submit({ preventDefault: () => {} });
+        resolveFirst({ ok: true, json: async () => usersResponse([{ ...customerUser(), name: 'first' }]) });
+        await first;
+        expect(elements['users-list'].children[0].fields['[data-field="name"]'].textContent)
+            .toBe('second');
+    });
+
+    test.each(['edit', 'delete'])(
+        'preserves search and returns to a valid page after %s removes the last result',
+        async (operation) => {
+            const requestedUrls = [];
+            let changed = false;
+            const { elements } = await runUsersScript({
+                currentUserId: 'admin-1',
+                isAdmin: true,
+                fetch: async (url) => {
+                    if (url.startsWith('/api/users?')) {
+                        requestedUrls.push(url);
+                        const params = new URL(url, 'http://localhost').searchParams;
+                        const page = Number(params.get('page'));
+                        const total = changed ? 10 : 11;
+                        const totalPages = changed ? 1 : 2;
+                        const users = changed && page > 1
+                            ? []
+                            : [customerUser(`user-${page}`)];
+                        return { ok: true, json: async () => usersResponse(users, total, page, totalPages) };
+                    }
+                    changed = true;
+                    if (operation === 'edit') {
+                        return { ok: true, json: async () => ({ user: customerUser('user-2') }) };
+                    }
+                    return { ok: true, status: 204 };
+                }
+            });
+
+            elements['users-search-input'].value = 'match';
+            elements['users-role-filter'].value = 'customer';
+            await elements['users-search-form'].listeners.submit({ preventDefault: () => {} });
+            await elements['users-next-page'].listeners.click();
+            const card = elements['users-list'].children[0];
+            if (operation === 'edit') {
+                card.fields['[data-field="current-password-input"]'].value = 'TestPassword123';
+                await card.fields['form[data-action="update"]'].listeners.submit({ preventDefault: () => {} });
+            } else {
+                await card.fields['button[data-action="delete"]'].listeners.click();
+                elements['delete-user-password'].value = 'password';
+                await elements['user-delete-form'].listeners.submit({ preventDefault: () => {} });
+            }
+
+            const finalUrl = requestedUrls[requestedUrls.length - 1];
+            expect(finalUrl).toContain('page=1');
+            expect(finalUrl).toContain('q=match');
+            expect(finalUrl).toContain('role=customer');
+            expect(elements['users-list'].children[0].fields['[data-field="name"]'].textContent)
+                .toBe('Customer User');
+            expect(elements['users-error'].hidden).toBe(true);
+            expect(elements['users-message'].textContent)
+                .toBe(`User ${operation === 'edit' ? 'updated' : 'deleted'} successfully.`);
+        }
+    );
+
+    test('hides admin results and controls when an admin changes their own role', async () => {
+        const admin = { ...customerUser('admin-1'), role: 'admin' };
+        const other = customerUser('other-1');
+        const { elements } = await runUsersScript({
+            currentUserId: admin.id,
+            isAdmin: true,
+            fetch: async (url) => {
+                if (url.startsWith('/api/users?')) {
+                    return { ok: true, json: async () => usersResponse([admin, other]) };
+                }
+                return { ok: true, json: async () => ({ user: { ...admin, role: 'customer' } }) };
+            }
+        });
+
+        const card = elements['users-list'].children[0];
+        card.fields['[data-field="role-input"]'].value = 'customer';
+        card.fields['[data-field="current-password-input"]'].value = 'TestPassword123';
+        await card.fields['form[data-action="update"]'].listeners.submit({ preventDefault: () => {} });
+
+        expect(elements['users-list'].children).toHaveLength(1);
+        expect(elements['users-search-form'].hidden).toBe(true);
+        expect(elements['users-toolbar'].hidden).toBe(true);
+        expect(elements['users-list'].dataset.view).toBe('list');
+        expect(elements['users-list'].children[0].fields['[data-field="role-control"]'].hidden).toBe(true);
     });
 
     test('requires a password in the deletion dialog and removes other users in place', async () => {

@@ -1,6 +1,7 @@
 import bcrypt from 'bcrypt';
 import User from './schemas/users.js';
 import Role from './schemas/roles.js';
+import { userSearchValues } from './user-search.js';
 
 const hashPasswordAux = async(password) => {
     return bcrypt.hash(password, 12);
@@ -16,6 +17,7 @@ const createUser = async (name, username, email, password) => {
         name,
         username,
         email,
+        search: userSearchValues({ name, username, email }),
         passwordHash,
         role: customerRole._id
     });
@@ -49,23 +51,49 @@ const findAllUsers = async () => {
         .exec();
 }
 
-const findUsersPage = async ({ search, page, limit }) => {
-    const filter = search ? { $text: { $search: search } } : {};
-    const sort = search
-        ? { score: { $meta: 'textScore' }, _id: 1 }
-        : { _id: 1 };
+const createUsersFilter = async ({ terms, role }) => {
+    const filter = {};
+    if (role) {
+        const matchingRole = await Role.findOne({ name: role });
+        if (!matchingRole) throw new Error(`Role "${role}" not found.`);
+        filter.role = matchingRole._id;
+    }
+    if (terms.length) {
+        const unprepared = await User.collection.findOne(
+            { search: { $not: { $size: 3 } } },
+            { projection: { _id: 1 } }
+        );
+        if (unprepared) {
+            throw new Error('User search data is incomplete. Run the user search migration.');
+        }
+        filter.$expr = {
+            $anyElementTrue: [{
+                $map: {
+                    input: '$search',
+                    as: 'field',
+                    in: {
+                        $or: terms.map((term) => ({
+                            $gte: [{ $indexOfCP: ['$$field', { $literal: term }] }, 0]
+                        }))
+                    }
+                }
+            }]
+        };
+    }
+    return filter;
+};
 
+const findUsersPage = async ({ filter, page, limit }) => {
     return User.find(filter)
         .select('-passwordHash')
         .populate('role')
-        .sort(sort)
+        .sort({ username: 1, _id: 1 })
         .skip((page - 1) * limit)
         .limit(limit)
         .exec();
 }
 
-const countUsers = async (search) => {
-    const filter = search ? { $text: { $search: search } } : {};
+const countUsers = async (filter) => {
     return User.countDocuments(filter).exec();
 }
 
@@ -110,14 +138,38 @@ const updateUserById = async (userID, updates) => {
         return findUserById(userID);
     }
 
-    return User.findByIdAndUpdate(
-        userID,
-        { $set: updateFields },
-        { returnDocument: 'after', runValidators: true }
-    )
-        .select('-passwordHash')
-        .populate('role')
-        .exec();
+    const searchFieldsChanged = ['name', 'username', 'email']
+        .some((field) => Object.prototype.hasOwnProperty.call(updateFields, field));
+    if (!searchFieldsChanged) {
+        return User.findByIdAndUpdate(
+            userID,
+            { $set: updateFields },
+            { returnDocument: 'after', runValidators: true }
+        )
+            .select('-passwordHash')
+            .populate('role')
+            .exec();
+    }
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+        const current = await User.findById(userID).select('name username email').lean();
+        if (!current) return null;
+        const search = userSearchValues({
+            name: updateFields.name ?? current.name,
+            username: updateFields.username ?? current.username,
+            email: updateFields.email ?? current.email
+        });
+        const updated = await User.findOneAndUpdate(
+            { _id: userID, name: current.name, username: current.username, email: current.email },
+            { $set: { ...updateFields, search } },
+            { returnDocument: 'after', runValidators: true }
+        )
+            .select('-passwordHash')
+            .populate('role')
+            .exec();
+        if (updated) return updated;
+    }
+    throw new Error('User changed repeatedly while updating search data.');
 }
 
 const deleteUserById = async (userID) => {
@@ -134,6 +186,7 @@ export {
     findUserById,
     findUserByUsername,
     findAllUsers,
+    createUsersFilter,
     findUsersPage,
     countUsers,
     findUserPasswordHashById,
