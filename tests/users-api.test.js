@@ -75,16 +75,18 @@ describe('User API routes', () => {
         expect(customerResponse.body.users[0].id).toBe(customer._id.toString());
         expect(customerResponse.body.pagination).toEqual({
             page: 1,
-            limit: 25,
-            total: 1,
-            totalPages: 1
+            limit: 10,
+            totalItems: 1,
+            totalPages: 1,
+            hasNextPage: false,
+            hasPreviousPage: false
         });
 
         const adminResponse = await (await login(admin))
             .get('/api/users')
             .expect(200);
         expect(adminResponse.body.users).toHaveLength(3);
-        expect(adminResponse.body.pagination.total).toBe(3);
+        expect(adminResponse.body.pagination.totalItems).toBe(3);
         expect(adminResponse.body.users.every((user) => !('passwordHash' in user))).toBe(true);
     });
 
@@ -94,8 +96,8 @@ describe('User API routes', () => {
             username: 'text',
             email: 'text'
         });
-        const firstMatch = await createAccount('match-first');
         const secondMatch = await createAccount('match-second');
+        const firstMatch = await createAccount('match-first');
         await createAccount('unrelated-person');
         const admin = await createAccount('search-admin', 'admin');
         const agent = await login(admin);
@@ -107,14 +109,22 @@ describe('User API routes', () => {
         expect(firstPage.body.pagination).toEqual({
             page: 1,
             limit: 1,
-            total: 2,
-            totalPages: 2
+            totalItems: 2,
+            totalPages: 2,
+            hasNextPage: true,
+            hasPreviousPage: false
         });
 
         const secondPage = await agent
             .get('/api/users?q=match&page=2&limit=1')
             .expect(200);
         expect(secondPage.body.users).toHaveLength(1);
+        expect(firstPage.body.users[0].id).toBe(firstMatch._id.toString());
+        expect(secondPage.body.users[0].id).toBe(secondMatch._id.toString());
+        expect(secondPage.body.pagination).toMatchObject({
+            hasNextPage: false,
+            hasPreviousPage: true
+        });
         const pageIds = [firstPage.body.users[0].id, secondPage.body.users[0].id];
         expect(new Set(pageIds).size).toBe(2);
         expect(pageIds).toContain(firstMatch._id.toString());
@@ -125,9 +135,70 @@ describe('User API routes', () => {
         const admin = await createAccount('search-admin', 'admin');
         const agent = await login(admin);
 
-        await agent.get('/api/users?page=0').expect(400);
-        await agent.get('/api/users?limit=101').expect(400);
+        for (const query of [
+            'page=0', 'page=abc', 'page=1.5', 'page=1&page=2',
+            'limit=0', 'limit=-1', 'limit=51', 'limit=1.5',
+            'page=9007199254740991&limit=50'
+        ]) {
+            await agent.get(`/api/users?${query}`).expect(400);
+        }
+        await agent.get('/api/users?limit=50').expect(200);
         await agent.get(`/api/users?q=${'a'.repeat(101)}`).expect(400);
+    });
+
+    test('orders and paginates users by username with complete metadata', async () => {
+        const admin = await createAccount('pagination-admin', 'admin');
+        await User.insertMany(Array.from({ length: 12 }, (_, index) => {
+            const username = `user${String(11 - index).padStart(2, '0')}`;
+            return {
+                name: username,
+                username,
+                email: `${username}@example.com`,
+                passwordHash: 'not-returned',
+                role: admin.role._id
+            };
+        }));
+        const agent = await login(admin);
+        const first = await agent.get('/api/users').expect(200);
+        expect(first.body.users.map((user) => user.username)).toEqual([
+            'pagination-admin', 'user00', 'user01', 'user02', 'user03',
+            'user04', 'user05', 'user06', 'user07', 'user08'
+        ]);
+        expect(first.body.pagination).toEqual({
+            page: 1, limit: 10, totalItems: 13, totalPages: 2,
+            hasNextPage: true, hasPreviousPage: false
+        });
+        const second = await agent.get('/api/users?page=2').expect(200);
+        expect(second.body.users.map((user) => user.username))
+            .toEqual(['user09', 'user10', 'user11']);
+        expect(second.body.pagination).toEqual({
+            page: 2, limit: 10, totalItems: 13, totalPages: 2,
+            hasNextPage: false, hasPreviousPage: true
+        });
+        const beyond = await agent.get('/api/users?page=3').expect(200);
+        expect(beyond.body.users).toEqual([]);
+        expect(beyond.body.pagination).toEqual({
+            page: 3, limit: 10, totalItems: 13, totalPages: 2,
+            hasNextPage: false, hasPreviousPage: true
+        });
+    });
+
+    test('returns empty search metadata and preserves customer visibility', async () => {
+        await User.collection.createIndex({ name: 'text', username: 'text', email: 'text' });
+        const customer = await createAccount('customer');
+        const admin = await createAccount('admin', 'admin');
+        const empty = await (await login(admin)).get('/api/users?q=unfindable').expect(200);
+        expect(empty.body.users).toEqual([]);
+        expect(empty.body.pagination).toEqual({
+            page: 1, limit: 10, totalItems: 0, totalPages: 0,
+            hasNextPage: false, hasPreviousPage: false
+        });
+        const own = await (await login(customer)).get('/api/users?page=2&q=unfindable').expect(200);
+        expect(own.body.users.map((user) => user.id)).toEqual([customer._id.toString()]);
+        expect(own.body.pagination).toEqual({
+            page: 1, limit: 10, totalItems: 1, totalPages: 1,
+            hasNextPage: false, hasPreviousPage: false
+        });
     });
 
     test('allows a customer to update their own account', async () => {

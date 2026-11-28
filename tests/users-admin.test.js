@@ -30,7 +30,10 @@ const login = async (user) => {
 
 const usersResponse = (users, total = users.length, page = 1, totalPages = (total ? 1 : 0)) => ({
     users,
-    pagination: { page, limit: 25, total, totalPages }
+    pagination: {
+        page, limit: 10, totalItems: total, totalPages,
+        hasNextPage: page < totalPages, hasPreviousPage: page > 1
+    }
 });
 
 class MockElement {
@@ -253,6 +256,8 @@ describe('User administration page', () => {
         });
 
         await elements['users-list-button'].listeners.click();
+        expect(requestedUrls[0]).toContain('limit=10');
+        expect(elements['users-previous-page'].disabled).toBe(true);
         expect(elements['users-list'].dataset.view).toBe('list');
         expect(elements['users-list-button'].attributes['aria-pressed']).toBe('true');
 
@@ -263,14 +268,19 @@ describe('User administration page', () => {
 
         await elements['users-next-page'].listeners.click();
         expect(requestedUrls[2]).toContain('page=2');
+        expect(requestedUrls[2]).toContain('q=Ada+Lovelace');
         expect(elements['users-page-status'].textContent).toBe('Page 2 of 2 (30 users)');
+        expect(elements['users-next-page'].disabled).toBe(true);
+        await elements['users-previous-page'].listeners.click();
+        expect(requestedUrls[3]).toContain('page=1');
+        expect(requestedUrls[3]).toContain('q=Ada+Lovelace');
 
         await elements['users-cards-button'].listeners.click();
         expect(elements['users-list'].dataset.view).toBe('cards');
     });
 
     test('edits users without reloading the document', async () => {
-        const user = customerUser();
+        let user = customerUser();
         let updateBody;
         const { elements } = await runUsersScript({
             fetch: async (url, options) => {
@@ -278,9 +288,10 @@ describe('User administration page', () => {
                     return { ok: true, json: async () => usersResponse([user]) };
                 }
                 updateBody = JSON.parse(options.body);
+                user = { ...user, name: 'Updated Customer' };
                 return {
                     ok: true,
-                    json: async () => ({ user: { ...user, name: 'Updated Customer' } })
+                    json: async () => ({ user })
                 };
             }
         });
@@ -298,6 +309,82 @@ describe('User administration page', () => {
         expect(updateBody).not.toHaveProperty('role');
         expect(card.fields['[data-field="name"]'].textContent).toBe('Updated Customer');
         expect(elements['users-message'].textContent).toBe('User updated successfully.');
+    });
+
+    test.each(['edit', 'delete'])(
+        'preserves search and returns to a valid page after %s removes the last result',
+        async (operation) => {
+            const requestedUrls = [];
+            let changed = false;
+            const { elements } = await runUsersScript({
+                currentUserId: 'admin-1',
+                isAdmin: true,
+                fetch: async (url) => {
+                    if (url.startsWith('/api/users?')) {
+                        requestedUrls.push(url);
+                        const params = new URL(url, 'http://localhost').searchParams;
+                        const page = Number(params.get('page'));
+                        const total = changed ? 10 : 11;
+                        const totalPages = changed ? 1 : 2;
+                        const users = changed && page > 1
+                            ? []
+                            : [customerUser(`user-${page}`)];
+                        return { ok: true, json: async () => usersResponse(users, total, page, totalPages) };
+                    }
+                    changed = true;
+                    if (operation === 'edit') {
+                        return { ok: true, json: async () => ({ user: customerUser('user-2') }) };
+                    }
+                    return { ok: true, status: 204 };
+                }
+            });
+
+            elements['users-search-input'].value = 'match';
+            await elements['users-search-form'].listeners.submit({ preventDefault: () => {} });
+            await elements['users-next-page'].listeners.click();
+            const card = elements['users-list'].children[0];
+            if (operation === 'edit') {
+                await card.fields['form[data-action="update"]'].listeners.submit({ preventDefault: () => {} });
+            } else {
+                await card.fields['button[data-action="delete"]'].listeners.click();
+                elements['delete-user-password'].value = 'password';
+                await elements['user-delete-form'].listeners.submit({ preventDefault: () => {} });
+            }
+
+            const finalUrl = requestedUrls[requestedUrls.length - 1];
+            expect(finalUrl).toContain('page=1');
+            expect(finalUrl).toContain('q=match');
+            expect(elements['users-list'].children[0].fields['[data-field="name"]'].textContent)
+                .toBe('Customer User');
+            expect(elements['users-error'].hidden).toBe(true);
+            expect(elements['users-message'].textContent)
+                .toBe(`User ${operation === 'edit' ? 'updated' : 'deleted'} successfully.`);
+        }
+    );
+
+    test('hides admin results and controls when an admin changes their own role', async () => {
+        const admin = { ...customerUser('admin-1'), role: 'admin' };
+        const other = customerUser('other-1');
+        const { elements } = await runUsersScript({
+            currentUserId: admin.id,
+            isAdmin: true,
+            fetch: async (url) => {
+                if (url.startsWith('/api/users?')) {
+                    return { ok: true, json: async () => usersResponse([admin, other]) };
+                }
+                return { ok: true, json: async () => ({ user: { ...admin, role: 'customer' } }) };
+            }
+        });
+
+        const card = elements['users-list'].children[0];
+        card.fields['[data-field="role-input"]'].value = 'customer';
+        await card.fields['form[data-action="update"]'].listeners.submit({ preventDefault: () => {} });
+
+        expect(elements['users-list'].children).toHaveLength(1);
+        expect(elements['users-search-form'].hidden).toBe(true);
+        expect(elements['users-toolbar'].hidden).toBe(true);
+        expect(elements['users-list'].dataset.view).toBe('list');
+        expect(elements['users-list'].children[0].fields['[data-field="role-control"]'].hidden).toBe(true);
     });
 
     test('requires a password in the deletion dialog and removes other users in place', async () => {
