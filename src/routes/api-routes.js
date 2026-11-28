@@ -24,6 +24,8 @@ import {
     deleteUserHandler
 } from "../controllers/users.js"
 
+import { getTicketClasses } from "../controllers/ticket-classes.js";
+
 const router = Router();
 
 /**
@@ -404,6 +406,61 @@ router.post('/api/bookings', createBookingHandler);
  *               $ref: '#/components/schemas/Error'
  */
 router.get('/api/bookings/:bookingId', getBookingByIdHandler);
+
+//Ticket Classes
+/**
+ * @openapi
+ * /api/ticket-classes:
+ *   get:
+ *     summary: Get ticket classes
+ *     description: Returns all ticket classes, or only those available on a specific day when the day query parameter is provided. The days field is optional and is only present when the class is limited to specific days.
+ *     tags:
+ *       - Ticket Classes
+ *     parameters:
+ *       - in: query
+ *         name: day
+ *         required: false
+ *         description: Day of the week to filter ticket classes
+ *         schema:
+ *           type: string
+ *           enum:
+ *             - monday
+ *             - tuesday
+ *             - wednesday
+ *             - thursday
+ *             - friday
+ *             - saturday
+ *             - sunday
+ *     responses:
+ *       200:
+ *         description: A list of ticket classes
+ *         content:
+ *           application/json:
+ *             example:
+ *               - class: "first"
+ *                 name: "First Class"
+ *                 pricePerKm: 250
+ *                 amenities:
+ *                   - "Private compartment"
+ *                   - "Multi-course meal"
+ *                   - "Champagne service"
+ *                   - "Priority boarding"
+ *                   - "Souvenir gift"
+ *                 description: "Ultimate luxury with private seating and full dining service"
+ *       400:
+ *         description: Invalid day in query named 'day'
+ *         content:
+ *           application/json:
+ *             example:
+ *               message: "Invalid day in query named 'day'"
+ *       500:
+ *         description: Error fetching ticket classes
+ *         content:
+ *           application/json:
+ *             example:
+ *               message: "Error fetching ticket classes"
+ */
+router.get("/api/ticket-classes", getTicketClasses);
 
 // Trains API
 router.get("/api/trains", trainsApi);
