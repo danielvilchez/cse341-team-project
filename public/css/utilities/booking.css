@@ -57,6 +57,13 @@ article.booking-page {
                         box-shadow: var(--shadow-md);
                     }
 
+                    &.unavailable{
+                    	background-color:#ddd;
+                    	border-color:#ddd;
+                    	cursor:not-allowed;
+                    	opacity: 0.7;
+                    }
+
                     input[type="radio"] {
                         position: absolute;
                         opacity: 0;
@@ -64,6 +71,12 @@ article.booking-page {
 
                         &:checked ~ .ticket-content {
                             background-color: var(--clr-accent-secondary);
+                            border: 3px solid var(--clr-primary-light);
+                        }
+
+                        &.unavailable:checked ~ .ticket-content{
+                        	background-color:#ddd;
+                        	border: 3px solid gray;
                         }
                     }
 
@@ -426,9 +439,23 @@ article.booking-page {
                     background-color: var(--clr-primary);
                     color: var(--clr-text-alt-primary);
 
+                    &.blocked{
+                    	background-color: #e5e7eb;
+                    	color:#9ca3af;
+                    	opacity: 0.7;
+                    }
+
                     &:hover {
                         background-color: var(--clr-accent);
                         box-shadow: var(--shadow-md);
+                    }
+
+                    &:hover.blocked{
+                        background-color: #e5e7eb;
+                    	color:#9ca3af;
+                    	opacity: 0.7;
+                    	cursor:not-allowed;
+                    	
                     }
                 }
 

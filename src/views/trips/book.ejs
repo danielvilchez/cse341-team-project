@@ -190,6 +190,7 @@
     const maxPassengers = 8;
     let passengerCount = 1;
     let ticketPrice = 0;
+    let disableBtn = false;
 
     const selectedDayLabels = document.querySelectorAll('.days-display label');
     const passengersList = document.getElementById('passengersList');
@@ -246,42 +247,48 @@
     }
     
     //ticket class template
-    const ticketClassTemplate = (ticket, selectedClass, distance) => {
-       const price = Number(distance) * Number(ticket.pricePerKm)
-       return `<label class="ticket-card" for="ticket-${ticket.class}">
-                            <input 
-                                type="radio" 
-                                name="ticketClass" 
-                                id="ticket-${ticket.class}" 
-                                value="${ticket.class}"
-                                data-name="${ticket.name}"
-                                data-price="${price}"
-                                ${ ticket.class === selectedClass ? 'checked' : ''}
-                                required
-                            >
-                            <div class="ticket-content">
-                                <div class="ticket-header">
-                                    <h3 class="ticket-name">${ticket.name}</h3>
-                                    <div class="ticket-price">
-                                        <span class="price-symbol">¥</span>
-                                        <span class="price-amount">${price}</span>
-                                    </div>
-                                </div>
-                                
-                                <p class="ticket-description">${ticket.description}</p>
-                                
-                                <ul class="amenities-list">
-                                    ${loadAmenities(ticket)}
-                                </ul>
-                            </div>
-                        </label>`;
+    const ticketClassTemplate = (ticket, selectedClass, distance, availableTickets) => {
+        const price = Number(distance) * Number(ticket.pricePerKm);
+        const isAvailable = availableTickets.some(
+            availableTicket => availableTicket.class === ticket.class
+        );
+
+        return `<label class="ticket-card ${isAvailable ? "" : "unavailable"}" for="ticket-${ticket.class}">
+        <input
+            type="radio"
+            name="ticketClass"
+            id="ticket-${ticket.class}"
+            value="${ticket.class}"
+            data-name="${ticket.name}"
+            data-price="${price}"
+            ${ticket.class === selectedClass ? 'checked' : ''}
+            required
+            ${isAvailable ? '' : 'disabled'}
+        >
+        <div class="ticket-content">
+            <div class="ticket-header">
+                <h3 class="ticket-name">${ticket.name}</h3>
+                <div class="ticket-price">
+                    <span class="price-symbol">¥</span>
+                    <span class="price-amount">${price}</span>
+                </div>
+            </div>
+            
+            <p class="ticket-description">${ticket.description}</p>
+            
+            <ul class="amenities-list">
+                ${loadAmenities(ticket)}
+            </ul>
+        </div>
+    </label>`;
     }
 
     //update ticket classes visually
     const updateTicketClasses = async (day) => {
         const selectedDay = day;
         const selectedClass = document.querySelector('input[name="ticketClass"]:checked')?.value;
-        let updatedTickets = await getClasses(selectedDay);
+        const availableTickets = await getClasses(selectedDay);
+        const allTickets = await getClasses();
         const distance = await getTripDistance();
         
         const parent = document.querySelector(".ticket-options");
@@ -289,15 +296,20 @@
 
         //re-render ticket classes
         let HTML = "";
-        
-        updatedTickets.forEach((ticketClass) => {
-        	HTML += ticketClassTemplate(ticketClass, selectedClass, distance);
-        })
-         
-        //update UI
+
+        allTickets.forEach(ticketClass => {
+            HTML += ticketClassTemplate(
+                ticketClass,
+                selectedClass,
+                distance,
+                availableTickets
+            );
+        });
+
         parent.innerHTML = HTML;
         updateTicketRadios();
         updateSelectedRadio();
+        updateSubmitButton();
         updateSummary();
         return
     } 
@@ -532,23 +544,15 @@
     const createRadiosListenner = () => {
     	ticketRadios.forEach((radio) => {
     	        radio.addEventListener('change', (e) => {
-    	            e.preventDefault();
-    	            const selected = e.currentTarget;
-    	
-    	            // Update visual and input selection
-    	            ticketRadios.forEach((input) => {
-    	                input.checked = false;
-    	                input.removeAttribute('checked');
-    	            });
-    	
-    	            selected.checked = true;
-    	            selected.setAttribute('checked', true);
-    	
-    	            // Update summary
+    	            e.preventDefault();	
+                    // Update summary
     	            const ticketName = e.target.dataset.name;
     	            ticketPrice = parseInt(e.target.dataset.price);
     	            selectedTicketName.textContent = ticketName;
+
+    	            //disable button when the user has selected an unavailable ticket class
     	            updateSummary();
+                    updateSubmitButton();
     	        });
     	    });
     }
@@ -566,6 +570,17 @@
     	   ticketPrice = parseInt(selectedRadio.dataset.price);
     	}
     }
+
+    const updateSubmitButton = (selectedRadio = document.querySelector(
+        'input[name="ticketClass"]:checked')) => {
+        const submitBtn = document.querySelector('button[type="submit"]');
+        const ticketCard = selectedRadio?.closest('.ticket-card');
+
+        disableBtn = ticketCard?.classList.contains('unavailable') ?? false;
+
+        submitBtn.disabled = disableBtn;
+        submitBtn.classList.toggle('blocked', disableBtn);
+    };
 
     // Initialize ticket based on default selection
 	createRadiosListenner();
